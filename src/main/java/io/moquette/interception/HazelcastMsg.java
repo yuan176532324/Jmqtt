@@ -31,6 +31,7 @@ public class HazelcastMsg implements Serializable {
     private String topic;
     private boolean retained;
     private String clientId;
+    private int messageId;
 
     public HazelcastMsg(InterceptPublishMessage msg) {
         this.clientId = msg.getClientID();
@@ -38,6 +39,7 @@ public class HazelcastMsg implements Serializable {
         this.qos = msg.getQos().value();
         this.payload = readBytesAndRewind(msg.getPayload());
         this.retained = msg.isRetainFlag();
+        this.messageId = msg.getMessageId();
     }
 
     public String getClientId() {
@@ -60,4 +62,7 @@ public class HazelcastMsg implements Serializable {
         return topic;
     }
 
+    public int getMessageId() {
+        return messageId;
+    }
 }

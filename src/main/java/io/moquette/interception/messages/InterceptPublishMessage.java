@@ -47,4 +47,8 @@ public class InterceptPublishMessage extends InterceptAbstractMessage {
     public String getUsername() {
         return username;
     }
+
+    public int getMessageId() {
+        return msg.variableHeader().messageId();
+    }
 }

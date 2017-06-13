@@ -540,9 +540,6 @@ public class ProtocolProcessor {
         } else {
             toStoreMsg.setClientID(clientId);
         }
-//        if (qos == EXACTLY_ONCE) { // QoS2
-//            messageGUID = m_messagesStore.storePublishForFuture(toStoreMsg);
-//        }
         this.messagesPublisher.publish2Subscribers(toStoreMsg, topic);
 
         if (!msg.fixedHeader().isRetain()) {
@@ -553,10 +550,6 @@ public class ProtocolProcessor {
             m_messagesStore.cleanRetained(topic);
             return;
         }
-//        if (guid == null) {
-//            // before wasn't stored
-//            messageGUID = m_messagesStore.storePublishForFuture(toStoreMsg);
-//        }
         m_messagesStore.storeRetained(topic, toStoreMsg);
     }
 

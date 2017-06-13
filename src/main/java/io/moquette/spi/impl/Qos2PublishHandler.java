@@ -72,28 +72,9 @@ class Qos2PublishHandler extends QosPublishHandler {
 
         IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setClientID(clientID);
-
         LOG.info("Sending publish message to subscribers CId={}, topic={}, messageId={}", clientID, topic, messageID);
-//        if (LOG.isTraceEnabled()) {
-//            LOG.trace("payload={}, subs Tree={}", payload2Str(toStoreMsg.getPayload()), subscriptions.dumpTree());
-//        }
-
         m_sessionsStore.sessionForClient(clientID).markAsInboundInflight(messageID, toStoreMsg);
-
         sendPubRec(clientID, messageID);
-
-        // Next the client will send us a pub rel
-        // NB publish to subscribers for QoS 2 happen upon PUBREL from publisher
-
-//        if (msg.fixedHeader().isRetain()) {
-//            if (msg.payload().readableBytes() == 0) {
-//                m_messagesStore.cleanRetained(topic);
-//            } else {
-//                m_messagesStore.storeRetained(topic, toStoreMsg);
-//            }
-//        }
-        //TODO this should happen on PUB_REL, else we notify false positive
-        //m_interceptor.notifyTopicPublished(msg, clientID, username);
     }
 
     /**
@@ -105,28 +86,8 @@ class Qos2PublishHandler extends QosPublishHandler {
         String username = NettyUtils.userName(channel);
         int messageID = messageId(msg);
         LOG.info("Processing PUBREL message. CId={}, messageId={}", clientID, messageID);
-        ClientSession targetSession = m_sessionsStore.sessionForClient(clientID);
-        IMessagesStore.StoredMessage evt = targetSession.inboundInflight(messageID);
-        if (evt == null) {
-            LOG.warn("Can't find inbound inflight message for CId={}, messageId={}", clientID, messageID);
-            throw new IllegalArgumentException("Can't find inbound inflight message");
-        }
-        final Topic topic = new Topic(evt.getTopic());
-
-//        this.publisher.publish2Subscribers(evt, topic, messageID);
-
-        if (evt.isRetained()) {
-            if (evt.getPayload().readableBytes() == 0) {
-                m_messagesStore.cleanRetained(topic);
-            } else {
-                m_messagesStore.storeRetained(topic, evt);
-            }
-        }
-
-        //TODO here we should notify to the listeners
-        m_interceptor.notifyTopicPublished((MqttPublishMessage) msg, clientID, username);
-
         sendPubComp(clientID, messageID);
+        m_interceptor.notifyTopicPublished((MqttPublishMessage) msg, clientID, username);
     }
 
     private void sendPubRec(String clientID, int messageID) {
