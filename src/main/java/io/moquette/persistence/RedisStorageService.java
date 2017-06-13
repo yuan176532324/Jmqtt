@@ -16,24 +16,23 @@
 
 package io.moquette.persistence;
 
-import io.moquette.persistence.redis.RedisMessagesStore;
-import io.moquette.persistence.redis.RedisSessionsStore;
-import io.moquette.persistence.redis.RedisUtil;
-import io.moquette.persistence.redis.RedissonUtil;
+import io.moquette.persistence.redis.*;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.IStore;
 import org.redisson.api.RedissonClient;
 
+import java.io.IOException;
+
 public class RedisStorageService implements IStore {
 
     private RedisSessionsStore m_sessionsStore;
     private RedisMessagesStore m_messagesStore;
+    private RedissonClient redis = RedissonUtil.getRedisson();
 
-    public RedisStorageService() {
-        RedissonClient redis = RedissonUtil.getInstance().getRedisson("r-wz99dc86eb498824.redis.rds.aliyuncs.com","6379","ALLwinner123");
+    public RedisStorageService() throws IOException {
         m_messagesStore = new RedisMessagesStore(redis);
-        m_sessionsStore = new RedisSessionsStore(redis, m_messagesStore);
+        m_sessionsStore = new RedisSessionsStore(redis);
         m_messagesStore.initStore();
         m_sessionsStore.initStore();
     }
@@ -50,5 +49,6 @@ public class RedisStorageService implements IStore {
 
     @Override
     public void close() {
+        RedissonUtil.closeRedisson(redis);
     }
 }

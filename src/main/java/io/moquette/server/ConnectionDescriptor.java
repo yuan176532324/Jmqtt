@@ -16,6 +16,7 @@
 
 package io.moquette.server;
 
+import java.io.Serializable;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +34,7 @@ import io.netty.channel.Channel;
  * Value object to maintain the information of single connection, like ClientID, Channel, and clean
  * session flag.
  */
-public class ConnectionDescriptor {
+public class ConnectionDescriptor implements Serializable{
 
     private static final Logger LOG = LoggerFactory.getLogger(ConnectionDescriptor.class);
 
@@ -49,11 +50,10 @@ public class ConnectionDescriptor {
         MESSAGES_DROPPED,
         INTERCEPTORS_NOTIFIED;
     }
-
-    public final String clientID;
-    private final Channel channel;
-    public final boolean cleanSession;
-    private final AtomicReference<ConnectionState> channelState = new AtomicReference<>(ConnectionState.DISCONNECTED);
+    public  String clientID;
+    private  Channel channel;
+    public  boolean cleanSession;
+    private  AtomicReference<ConnectionState> channelState = new AtomicReference<>(ConnectionState.DISCONNECTED);
 
     public ConnectionDescriptor(String clientID, Channel session, boolean cleanSession) {
         this.clientID = clientID;

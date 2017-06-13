@@ -18,7 +18,6 @@ package io.moquette.server;
 
 import com.aliyun.openservices.ons.api.Consumer;
 import com.aliyun.openservices.ons.api.ONSFactory;
-import com.aliyun.openservices.ons.api.bean.ConsumerBean;
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.FileSystemXmlConfig;
@@ -33,8 +32,6 @@ import io.moquette.interception.AliyunInterceptHandler;
 import io.moquette.interception.HazelcastInterceptHandler;
 import io.moquette.interception.HazelcastMsg;
 import io.moquette.interception.InterceptHandler;
-import io.moquette.persistence.redis.RedisUtil;
-import io.moquette.persistence.redis.RedissonUtil;
 import io.moquette.server.config.FileResourceLoader;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.IResourceLoader;
@@ -50,11 +47,6 @@ import io.moquette.spi.security.ISslContextCreator;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -257,7 +249,7 @@ public class Server {
      * @param clientId the id of the sending server.
      * @throws IllegalStateException if the server is not yet started
      */
-    public void internalPublish(MqttPublishMessage msg, final String clientId, final String guid) {
+    public void internalPublish(MqttPublishMessage msg, final String clientId) throws IOException {
         final int messageID = msg.variableHeader().messageId();
         if (!m_initialized) {
             LOG.error("Moquette is not started, internal message cannot be published. CId={}, messageId={}", clientId,
@@ -265,7 +257,7 @@ public class Server {
             throw new IllegalStateException("Can't publish on a server is not yet started");
         }
         LOG.debug("Publishing message. CId={}, messageId={}", clientId, messageID);
-        m_processor.internalPublish(msg, clientId, guid);
+        m_processor.internalPublish(msg, clientId);
     }
 
     public void stopServer() {

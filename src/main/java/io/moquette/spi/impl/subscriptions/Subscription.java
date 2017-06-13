@@ -16,20 +16,24 @@
 
 package io.moquette.spi.impl.subscriptions;
 
-import io.moquette.spi.ISessionsStore.ClientTopicCouple;
+import io.moquette.spi.ISubscriptionsStore.ClientTopicCouple;
 import io.netty.handler.codec.mqtt.MqttQoS;
+
 import java.io.Serializable;
 
 /**
  * Maintain the information about which Topic a certain ClientID is subscribed and at which QoS
  */
-public final class Subscription implements Serializable {
+public  class Subscription implements Serializable {
 
     private static final long serialVersionUID = -3383457629635732794L;
-    final MqttQoS requestedQos; // max QoS acceptable
-    final String clientId;
-    final Topic topicFilter;
-    final boolean active;
+    private MqttQoS requestedQos; // max QoS acceptable
+    private String clientId;
+    private Topic topicFilter;
+    private boolean active;
+
+    public Subscription() {
+    }
 
     public Subscription(String clientId, Topic topicFilter, MqttQoS requestedQos) {
         this.requestedQos = requestedQos;

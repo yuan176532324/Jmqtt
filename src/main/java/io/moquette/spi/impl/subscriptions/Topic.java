@@ -40,6 +40,10 @@ public class Topic implements Serializable {
     public Topic() {
     }
 
+    public String getTopic() {
+        return topic;
+    }
+
     public Topic(String topic) {
         this.topic = topic;
     }

@@ -21,24 +21,26 @@ package io.moquette.spi.impl.subscriptions;
  */
 public class Token {
 
-    static final Token EMPTY = new Token("");
-    static final Token MULTI = new Token("#");
-    static final Token SINGLE = new Token("+");
+    public static final Token EMPTY = new Token("");
+    public static final Token MULTI = new Token("#");
+    public static final Token SINGLE = new Token("+");
     final String name;
 
-    protected Token(String s) {
+    public Token(String s) {
         name = s;
     }
 
-    protected String name() {
+    public String name() {
         return name;
     }
 
     protected boolean match(Token t) {
-        if (t == MULTI || t == SINGLE) {
+        if (t == SINGLE) {
+            return true;
+        }
+        if (t == MULTI) {
             return false;
         }
-
         if (this == MULTI || this == SINGLE) {
             return true;
         }

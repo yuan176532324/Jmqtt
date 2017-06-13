@@ -77,11 +77,7 @@ class Qos1PublishHandler extends QosPublishHandler {
                 m_messagesStore.cleanRetained(topic);
             } else {
                 // before wasn't stored
-                MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
-
-                //TODO Il messaggio non ha il guid settato
-//                m_messagesStore.storeRetained(topic, toStoreMsg.getGuid());
-                m_messagesStore.storeRetained(topic, guid);
+                m_messagesStore.storeRetained(topic, toStoreMsg);
             }
         }
 

@@ -49,7 +49,7 @@ public class HazelcastListener implements MessageListener<HazelcastMsg> {
                 MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(hzMsg.getTopic(), 0);
                 ByteBuf payload = Unpooled.wrappedBuffer(hzMsg.getPayload());
                 MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
-                server.internalPublish(publishMessage, hzMsg.getClientId(), "");
+                server.internalPublish(publishMessage, hzMsg.getClientId());
             }
         } catch (Exception ex) {
             LOG.error("error polling hazelcast msg queue", ex);

@@ -21,13 +21,16 @@ import io.moquette.spi.ClientSession;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.impl.subscriptions.Subscription;
-import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
+import io.moquette.spi.impl.subscriptions.SubscriptionsDirectory;
 import io.moquette.spi.impl.subscriptions.Topic;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.List;
+
 import static io.moquette.spi.impl.ProtocolProcessor.lowerQosToTheSubscriptionDesired;
 
 class MessagesPublisher {
@@ -36,10 +39,10 @@ class MessagesPublisher {
     private final ConnectionDescriptorStore connectionDescriptors;
     private final ISessionsStore m_sessionsStore;
     private final PersistentQueueMessageSender messageSender;
-    private final SubscriptionsStore subscriptions;
+    private final SubscriptionsDirectory subscriptions;
 
     public MessagesPublisher(ConnectionDescriptorStore connectionDescriptors, ISessionsStore sessionsStore,
-                             PersistentQueueMessageSender messageSender, SubscriptionsStore subscriptions) {
+                             PersistentQueueMessageSender messageSender, SubscriptionsDirectory subscriptions) {
         this.connectionDescriptors = connectionDescriptors;
         this.m_sessionsStore = sessionsStore;
         this.messageSender = messageSender;
@@ -51,39 +54,39 @@ class MessagesPublisher {
     }
 
     private static MqttPublishMessage notRetainedPublishWithMessageId(String topic, MqttQoS qos, ByteBuf message,
-            int messageId) {
+                                                                      int messageId) {
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, qos, false, 0);
         MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(topic, messageId);
         return new MqttPublishMessage(fixedHeader, varHeader, message);
     }
 
-    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic, int messageID) {
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Sending publish message to subscribers. CId={}, topic={}, messageId={}, payload={}, " +
-                    "subscriptionTree={}", pubMsg.getClientID(), topic, messageID, DebugUtils.payload2Str(pubMsg.getPayload()),
-                subscriptions.dumpTree());
-        } else {
-            LOG.info("Sending publish message to subscribers. CId={}, topic={}, messageId={}", pubMsg.getClientID(), topic,
-                messageID);
-        }
+    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic, int messageID) throws IOException {
+//        if (LOG.isTraceEnabled()) {
+//            LOG.trace("Sending publish message to subscribers. CId={}, topic={}, messageId={}, payload={}, " +
+//                            "subscriptionTree={}", pubMsg.getClientID(), topic, messageID, DebugUtils.payload2Str(pubMsg.getPayload()),
+//                    subscriptions.dumpTree());
+//        } else {
+//            LOG.info("Sending publish message to subscribers. CId={}, topic={}, messageId={}", pubMsg.getClientID(), topic,
+//                    messageID);
+//        }
         publish2Subscribers(pubMsg, topic);
     }
 
-    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic) {
+    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic) throws IOException {
         List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
         final String topic1 = pubMsg.getTopic();
         final MqttQoS publishingQos = pubMsg.getQos();
         final ByteBuf origPayload = pubMsg.getPayload();
-
+        LOG.info("topicMatchingSubscriptions:" + topicMatchingSubscriptions);
         for (final Subscription sub : topicMatchingSubscriptions) {
             MqttQoS qos = lowerQosToTheSubscriptionDesired(sub, publishingQos);
             ClientSession targetSession = m_sessionsStore.sessionForClient(sub.getClientId());
 
-            boolean targetIsActive = this.connectionDescriptors.isConnected(sub.getClientId());
+            boolean targetIsActive = m_sessionsStore.getSessionStatus(sub.getClientId());
 //TODO move all this logic into messageSender, which puts into the flightZone only the messages that pull out of the queue.
             if (targetIsActive) {
                 LOG.debug("Sending PUBLISH message to active subscriber. CId={}, topicFilter={}, qos={}",
-                    sub.getClientId(), sub.getTopicFilter(), qos);
+                        sub.getClientId(), sub.getTopicFilter(), qos);
                 // we need to retain because duplicate only copy r/w indexes and don't retain() causing
                 // refCnt = 0
                 ByteBuf payload = origPayload.retainedDuplicate();
@@ -100,7 +103,7 @@ class MessagesPublisher {
             } else {
                 if (!targetSession.isCleanSession()) {
                     LOG.debug("Storing pending PUBLISH inactive message. CId={}, topicFilter={}, qos={}",
-                        sub.getClientId(), sub.getTopicFilter(), qos);
+                            sub.getClientId(), sub.getTopicFilter(), qos);
                     // store the message in targetSession queue to deliver
                     targetSession.enqueue(pubMsg);
                 }

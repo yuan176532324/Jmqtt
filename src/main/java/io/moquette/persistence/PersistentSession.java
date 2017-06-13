@@ -15,7 +15,10 @@
  */
 package io.moquette.persistence;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.util.Properties;
 
 /**
  * This is a DTO used to persist minimal status (clean session and activation status) of a
@@ -25,6 +28,8 @@ public class PersistentSession implements Serializable {
 
     private static final long serialVersionUID = 5052054783220481854L;
     private boolean cleanSession;
+    private String brokerId;
+    private boolean active;
 
 
     public PersistentSession() {
@@ -32,6 +37,31 @@ public class PersistentSession implements Serializable {
 
     public PersistentSession(boolean cleanSession) {
         this.cleanSession = cleanSession;
+        Properties properties = new Properties();
+        InputStream in = ClassLoader.getSystemResourceAsStream("application.properties");
+        try {
+            properties.load(in);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.brokerId = properties.getProperty("BrokerId");
+        this.active = true;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public String getBrokerId() {
+        return brokerId;
+    }
+
+    public void setBrokerId(String brokerId) {
+        this.brokerId = brokerId;
     }
 
     public boolean isCleanSession() {

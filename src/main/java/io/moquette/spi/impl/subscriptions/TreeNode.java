@@ -16,19 +16,39 @@
 
 package io.moquette.spi.impl.subscriptions;
 
-import io.moquette.spi.ISessionsStore.ClientTopicCouple;
+import io.moquette.persistence.redis.RedissonUtil;
+import io.moquette.spi.ISubscriptionsStore.ClientTopicCouple;
+import org.redisson.api.RedissonClient;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-class TreeNode {
+public class TreeNode {
 
-    Token m_token;
-    List<TreeNode> m_children = new ArrayList<>();
-    Set<ClientTopicCouple> m_subscriptions = new HashSet<>();
+    private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(TreeNode.class);
+    public static final String TREE_NODE_KEY = "tn:";
+    public static final String SUBSCRIPTIONS_KEY = "cli:";
+    private Token m_token;
+    private RedissonClient redissonClient;
+    private String key = "";
 
-    private int subtreeSubscriptions;
+    public void setKey(String key) {
+        this.key = key;
+    }
 
-    TreeNode() {
+    public String getKey() {
+        return key;
+    }
+
+    public TreeNode(){
+    }
+
+    public TreeNode(String key) throws IOException {
+        this.redissonClient = RedissonUtil.getRedisson();
+        this.key = key;
+        this.m_token = new Token(getLastToken(key));
     }
 
     Token getToken() {
@@ -40,141 +60,121 @@ class TreeNode {
     }
 
     void addSubscription(ClientTopicCouple s) {
-        m_subscriptions.add(s);
-        this.subtreeSubscriptions++;
+        retriveSubscriptions(key).add(s.clientID);
     }
 
     void addChild(TreeNode child) {
-        m_children.add(child);
-        this.subtreeSubscriptions += child.subtreeSubscriptions;
+        retrieveChildren(key).add(TREE_NODE_KEY + child.key);
     }
 
     /**
      * Creates a shallow copy of the current node. Copy the token and the children.
      */
-    TreeNode copy() {
+    TreeNode copy() throws IOException {
         final TreeNode copy = new TreeNode();
-        copy.m_children = new ArrayList<>(m_children);
-        copy.m_subscriptions = new HashSet<>(m_subscriptions);
+        copy.key = key;
         copy.m_token = m_token;
-        copy.subtreeSubscriptions = this.subtreeSubscriptions;
         return copy;
     }
 
     /**
      * Search for children that has the specified token, if not found return null;
      */
-    TreeNode childWithToken(Token token) {
-        for (TreeNode child : m_children) {
-            if (child.getToken().equals(token)) {
-                return child;
-            }
-        }
-
+    TreeNode childWithToken(Token token) throws IOException {
         return null;
     }
 
     void updateChild(TreeNode oldChild, TreeNode newChild) {
-        m_children.remove(oldChild);
-        m_children.add(newChild);
-        this.subtreeSubscriptions += newChild.subtreeSubscriptions - oldChild.subtreeSubscriptions;
+        retrieveChildren(key).remove(TREE_NODE_KEY + oldChild.key);
+        retrieveChildren(key).add(TREE_NODE_KEY + newChild.key);
     }
 
-    Collection<ClientTopicCouple> subscriptions() {
-        return m_subscriptions;
-    }
 
     public void remove(ClientTopicCouple clientTopicCouple) {
-        m_subscriptions.remove(clientTopicCouple);
-        this.subtreeSubscriptions--;
+        retriveSubscriptions(key).remove(clientTopicCouple.clientID);
     }
 
-    // TODO smell a query method that return the result modifing the parameter (matchingSubs)
-    void matches(Queue<Token> tokens, List<ClientTopicCouple> matchingSubs) {
+    void matches(Queue<Token> tokens, List<ClientTopicCouple> matchingSubs) throws IOException {
         Token t = tokens.poll();
-
+        LOG.info("begin to match!!!" + t);
         // check if t is null <=> tokens finished
         if (t == null) {
-            matchingSubs.addAll(m_subscriptions);
+            matchingSubs.addAll(getSubscriptions(key));
             // check if it has got a MULTI child and add its subscriptions
-            for (TreeNode n : m_children) {
+            for (String childrenKey : retrieveChildren(key)) {
+                childrenKey = childrenKey.replace("tn:", "");
+                TreeNode n = new TreeNode(childrenKey);
                 if (n.getToken() == Token.MULTI || n.getToken() == Token.SINGLE) {
-                    matchingSubs.addAll(n.subscriptions());
+                    matchingSubs.addAll(n.getSubscriptions(childrenKey));
                 }
+                n.shutdown();
             }
-
             return;
         }
-
         // we are on MULTI, than add subscriptions and return
         if (m_token == Token.MULTI) {
-            matchingSubs.addAll(m_subscriptions);
+            LOG.info("Here is  #!!");
+            matchingSubs.addAll(getSubscriptions(key));
             return;
         }
 
-        for (TreeNode n : m_children) {
-            if (n.getToken().match(t)) {
+        for (String childrenKey : retrieveChildren(key)) {
+            childrenKey = childrenKey.replace("tn:", "");
+            TreeNode n = new TreeNode(childrenKey);
+            LOG.info("childrenKey :" + childrenKey + " ,Token is:" + n.getToken().name());
+            if (n.getToken().equals(t) || n.getToken().equals(Token.SINGLE)) {
+                LOG.info("match success!");
                 // Create a copy of token, else if navigate 2 sibling it
                 // consumes 2 elements on the queue instead of one
                 n.matches(new LinkedBlockingQueue<>(tokens), matchingSubs);
                 // TODO don't create a copy n.matches(tokens, matchingSubs);
+            } else if (n.getToken().equals(Token.MULTI)) {
+                matchingSubs.addAll(getSubscriptions(childrenKey));
             }
+
         }
     }
 
-    /**
-     * Return the number of registered subscriptions
-     */
-    int size() {
-        return this.subtreeSubscriptions;
+    private void shutdown() {
+        RedissonUtil.closeRedisson(redissonClient);
     }
 
-    /**
-     * Create a copied subtree rooted on this node but purged of clientID's subscriptions.
-     */
-    TreeNode removeClientSubscriptions(String clientID) {
-        // collect what to delete and then delete to avoid ConcurrentModification
-        TreeNode newSubRoot = this.copy();
-        remoteSubscriptions(clientID, newSubRoot);
-        removeSubscriptionFromChildren(clientID, newSubRoot);
-        return newSubRoot;
+    private String getLastToken(String key) {
+        if (key.contains("tn:") || key.contains("cli:")) {
+            key = key.substring(3, key.length());
+        }
+        int index = key.lastIndexOf('/');
+        if (index < 0) {
+            return key;
+        }
+        return key.substring(index + 1, key.length());
     }
 
-    private void removeSubscriptionFromChildren(String clientID, TreeNode newSubRoot) {
-        int newSubtreeSubscriptions = 0;
-        //go deep
-        List<TreeNode> newChildren = new ArrayList<>(newSubRoot.m_children.size());
-        for (TreeNode child : newSubRoot.m_children) {
-            final TreeNode purgedSubtree = child.removeClientSubscriptions(clientID);
-            if (purgedSubtree.size() != 0) {
-                newSubtreeSubscriptions += purgedSubtree.size();
-                newChildren.add(purgedSubtree);
-            }
-        }
-        newSubRoot.m_children = newChildren;
-        newSubRoot.subtreeSubscriptions += newSubtreeSubscriptions;
+    private Collection<String> retrieveChildren(String key) {
+        Collection<String> collection = redissonClient.getSet(TREE_NODE_KEY + key);
+        shutdown();
+        return collection;
     }
 
-    private void remoteSubscriptions(String clientID, TreeNode newSubRoot) {
-        List<ClientTopicCouple> subsToRemove = new ArrayList<>();
-        for (ClientTopicCouple s : newSubRoot.m_subscriptions) {
-            if (s.clientID.equals(clientID)) {
-                subsToRemove.add(s);
-            }
-        }
-
-        for (ClientTopicCouple s : subsToRemove) {
-            newSubRoot.m_subscriptions.remove(s);
-        }
-        newSubRoot.subtreeSubscriptions = newSubRoot.m_subscriptions.size();
+    private Collection<String> retriveSubscriptions(String key) {
+        Collection<String> collection = redissonClient.getSet(SUBSCRIPTIONS_KEY + key);
+        shutdown();
+        return collection;
     }
 
-    int recalculateSubscriptionsSize() {
-        int res = m_subscriptions.size();
-        for (TreeNode child : m_children) {
-            res += child.recalculateSubscriptionsSize();
+    private Collection<ClientTopicCouple> getSubscriptions(String key) {
+        Collection<String> collection = redissonClient.getSet(SUBSCRIPTIONS_KEY + key);
+        Collection<ClientTopicCouple> clientTopicCouples = new HashSet<>();
+        for (String s : collection) {
+            Topic topic = new Topic(key);
+            ClientTopicCouple clientTopicCouple = new ClientTopicCouple(s, topic);
+            clientTopicCouples.add(clientTopicCouple);
         }
-        this.subtreeSubscriptions = res;
-        return res;
+        shutdown();
+        return clientTopicCouples;
+    }
+
+    public boolean compareAndSet(TreeNode oldRoot, TreeNode root) {
+        return false;
     }
 }

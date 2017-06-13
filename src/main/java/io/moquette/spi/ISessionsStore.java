@@ -18,10 +18,8 @@ package io.moquette.spi;
 
 import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.impl.subscriptions.Subscription;
-import io.moquette.spi.impl.subscriptions.Topic;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -29,93 +27,14 @@ import java.util.concurrent.BlockingQueue;
  */
 public interface ISessionsStore {
 
-    class ClientTopicCouple {
-
-        public final Topic topicFilter;
-        public final String clientID;
-
-        public ClientTopicCouple(String clientID, Topic topicFilter) {
-            this.clientID = clientID;
-            this.topicFilter = topicFilter;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
-
-            ClientTopicCouple that = (ClientTopicCouple) o;
-
-            if (topicFilter != null ? !topicFilter.equals(that.topicFilter) : that.topicFilter != null)
-                return false;
-            return !(clientID != null ? !clientID.equals(that.clientID) : that.clientID != null);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = topicFilter != null ? topicFilter.hashCode() : 0;
-            result = 31 * result + (clientID != null ? clientID.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "ClientTopicCouple{" + "topicFilter='" + topicFilter + '\'' + ", clientID='" + clientID + '\'' + '}';
-        }
-    }
-
     void initStore();
+
+    ISubscriptionsStore subscriptionStore();
 
     void updateCleanStatus(String clientID, boolean cleanSession);
 
     /**
-     * Add a new subscription to the session
-     *
-     * @param newSubscription
-     *            the subscription to add.
-     */
-    void addNewSubscription(Subscription newSubscription);
-
-    /**
-     * Removed a specific subscription
-     *
-     * @param topic
-     *            the topic of the subscription.
-     * @param clientID
-     *            the session client.
-     */
-    void removeSubscription(Topic topic, String clientID);
-
-    /**
-     * Remove all the subscriptions of the session
-     *
-     * @param sessionID
-     *            the client ID
-     */
-    void wipeSubscriptions(String sessionID);
-
-    /**
-     * Return all topic filters to recreate the subscription tree.
-     */
-    List<ClientTopicCouple> listAllSubscriptions();
-
-    /**
-     * @param couple
-     *            the subscription descriptor.
-     * @return the subscription stored by clientID and topicFilter, if any else null;
-     */
-    Subscription getSubscription(ClientTopicCouple couple);
-
-    /*
-     * @return all subscriptions stored.
-     */
-    List<Subscription> getSubscriptions();
-
-    /**
-     * @param clientID
-     *            the session client ID.
+     * @param clientID the session client ID.
      * @return true iff there are subscriptions persisted with clientID
      */
     boolean contains(String clientID);
@@ -123,8 +42,7 @@ public interface ISessionsStore {
     ClientSession createNewSession(String clientID, boolean cleanSession);
 
     /**
-     * @param clientID
-     *            the client owning the session.
+     * @param clientID the client owning the session.
      * @return the session for the given clientID, null if not found.
      */
     ClientSession sessionForClient(String clientID);
@@ -132,29 +50,25 @@ public interface ISessionsStore {
     /**
      * Returns all the sessions
      *
-     * @return
+     * @return the collection of all stored client sessions.
      */
     Collection<ClientSession> getAllSessions();
 
-    void inFlightAck(String clientID, int messageID);
+    StoredMessage inFlightAck(String clientID, int messageID);
 
     /**
-     * Save the binding messageID, clientID - guid
+     * Save the message msg with  messageID, clientID as in flight
      *
-     * @param clientID
-     *            the client ID
-     * @param messageID
-     *            the message ID
-     * @param guid
-     *            the uuid of the message to mark as inflight.
+     * @param clientID  the client ID
+     * @param messageID the message ID
+     * @param msg       the message to put in flight zone
      */
-    void inFlight(String clientID, int messageID, MessageGUID guid);
+    void inFlight(String clientID, int messageID, StoredMessage msg);
 
     /**
      * Return the next valid packetIdentifier for the given client session.
      *
-     * @param clientID
-     *            the clientID requesting next packet id.
+     * @param clientID the clientID requesting next packet id.
      * @return the next valid id.
      */
     int nextPacketID(String clientID);
@@ -162,26 +76,21 @@ public interface ISessionsStore {
     /**
      * List the guids for retained messages for the session
      *
-     * @param clientID
-     *            the client ID owning the queue.
+     * @param clientID the client ID owning the queue.
      * @return the list of queue message UUIDs.
      */
     BlockingQueue<StoredMessage> queue(String clientID);
 
     void dropQueue(String clientID);
 
-    void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID);
+    void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID, StoredMessage msg);
 
     /**
-     * @param clientID
-     *            the client ID accessing the second phase.
-     * @param messageID
-     *            the message ID that reached the second phase.
+     * @param clientID  the client ID accessing the second phase.
+     * @param messageID the message ID that reached the second phase.
      * @return the guid of message just acked.
      */
-    MessageGUID secondPhaseAcknowledged(String clientID, int messageID);
-
-    StoredMessage getInflightMessage(String clientID, int messageID);
+    StoredMessage secondPhaseAcknowledged(String clientID, int messageID);
 
     /**
      * Returns the number of inflight messages for the given client ID
@@ -193,10 +102,10 @@ public interface ISessionsStore {
 
     /**
      * @return the inflight inbound (PUBREL for Qos2) message.
-     * */
+     */
     IMessagesStore.StoredMessage inboundInflight(String clientID, int messageID);
 
-    void markAsInboundInflight(String clientID, int messageID, MessageGUID guid);
+    void markAsInboundInflight(String clientID, int messageID, StoredMessage msg);
 
     /**
      * Returns the size of the session queue for the given client ID
@@ -214,5 +123,10 @@ public interface ISessionsStore {
      */
     int getSecondPhaseAckPendingMessages(String clientID);
 
-    Collection<MessageGUID> pendingAck(String clientID);
+    void offlineSession(String clientID);
+
+    boolean getSessionStatus(String clientID);
+
+    void cleanSession(String clientID);
+
 }

@@ -5,6 +5,10 @@ import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.redisson.config.ReplicatedServersConfig;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+
 /**
  * Created by Administrator on 2017/5/23.
  */
@@ -27,6 +31,7 @@ public final class RedissonUtil {
         return redisUtils;
     }
 
+    public static RedissonClient redissonClient;
 
     /**
      * 使用config创建Redisson
@@ -44,18 +49,18 @@ public final class RedissonUtil {
     /**
      * 使用ip地址和端口创建Redisson
      *
-     * @param ip
-     * @param port
      * @return
      */
-    public RedissonClient getRedisson(String ip, String port, String password) {
+    public static RedissonClient getRedisson() {
         Config config = new Config();
-//        config.useReplicatedServers().addNodeAddress(ip + ":" + port).setPassword(password);
-//        config.useClusterServers().addNodeAddress(ip + ":" + port).setPassword(password);
-        config.useSingleServer().setAddress(ip + ":" + port).setPassword(password).setConnectionPoolSize(8).setConnectionMinimumIdleSize(8);
-        RedissonClient redisson = Redisson.create(config);
-        System.out.println("成功连接Redis Server" + "\t" + "连接" + ip + ":" + port + "服务器");
-        return redisson;
+        try {
+            config = Config.fromJSON(new File("src/main/resources/config.json"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        config.useSingleServer();
+        redissonClient = Redisson.create(config);
+        return redissonClient;
     }
 
     /**

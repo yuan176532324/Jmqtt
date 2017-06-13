@@ -59,7 +59,7 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
             if (descriptor == null) {
                 if (messageID != null) {
                     LOG.error("Client has just disconnected. {} message could not be sent. CId=<{}>, messageId={}",
-                        messageType, clientID, messageID);
+                            messageType, clientID, messageID);
                 } else {
                     LOG.error("Client has just disconnected. {} could not be sent. CId=<{}>", messageType, clientID);
                 }
@@ -113,7 +113,7 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
         ConnectionDescriptor descriptor = connectionDescriptors.get(clientID);
         if (descriptor == null) {
             LOG.error("Connection descriptor doesn't exist. MQTT connection cannot be closed. CId=<{}>, " +
-                "closeImmediately={}", clientID, closeImmediately);
+                    "closeImmediately={}", clientID, closeImmediately);
             return false;
         }
         if (closeImmediately) {
@@ -150,7 +150,7 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
         Collection<MqttSubscription> mqttSubscriptions = new ArrayList<>();
         for (Subscription subscription : session.getSubscriptions()) {
             mqttSubscriptions.add(new MqttSubscription(subscription.getRequestedQos().toString(),
-                subscription.getClientId(), subscription.getTopicFilter().toString(), subscription.isActive()));
+                    subscription.getClientId(), subscription.getTopicFilter().toString(), subscription.isActive()));
         }
         result.setActiveSubscriptions(mqttSubscriptions);
         result.setCleanSession(session.isCleanSession());
@@ -160,7 +160,7 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
             BytesMetrics bytesMetrics = descriptor.getBytesMetrics();
             MessageMetrics messageMetrics = descriptor.getMessageMetrics();
             result.setConnectionMetrics(new MqttConnectionMetrics(bytesMetrics.readBytes(), bytesMetrics.wroteBytes(),
-                messageMetrics.messagesRead(), messageMetrics.messagesWrote()));
+                    messageMetrics.messagesRead(), messageMetrics.messagesWrote()));
         } else {
             result.setConnectionEstablished(false);
         }

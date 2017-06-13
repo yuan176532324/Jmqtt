@@ -59,7 +59,7 @@ public class AliyunMessageListener extends AbstractInternalMessageListener<Hazel
             MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(hazelcastMsg.getTopic(), 0);
             ByteBuf payload = Unpooled.wrappedBuffer(hazelcastMsg.getPayload());
             MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
-            server.internalPublish(publishMessage, hazelcastMsg.getClientId(), hazelcastMsg.getGuid());
+            server.internalPublish(publishMessage, hazelcastMsg.getClientId());
         } catch (Exception ex) {
             LOG.error("error polling aliyunMQ msg queue", ex);
         }
