@@ -3,11 +3,9 @@ package io.moquette.persistence.redis;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.redisson.config.ReplicatedServersConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * Created by Administrator on 2017/5/23.

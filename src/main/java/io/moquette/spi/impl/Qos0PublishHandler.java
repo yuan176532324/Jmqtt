@@ -57,13 +57,6 @@ class Qos0PublishHandler extends QosPublishHandler {
         IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setClientID(clientID);
 
-//        this.publisher.publish2Subscribers(toStoreMsg, topic);
-
-//        if (msg.fixedHeader().isRetain()) {
-//            // QoS == 0 && retain => clean old retained
-//            m_messagesStore.cleanRetained(topic);
-//        }
-
         m_interceptor.notifyTopicPublished(msg, clientID, username);
     }
 }

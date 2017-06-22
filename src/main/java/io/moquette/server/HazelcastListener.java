@@ -18,14 +18,14 @@ package io.moquette.server;
 
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
-import io.moquette.interception.HazelcastMsg;
+import io.moquette.interception.KafkaMsg;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HazelcastListener implements MessageListener<HazelcastMsg> {
+public class HazelcastListener implements MessageListener<KafkaMsg> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HazelcastListener.class);
 
@@ -36,10 +36,10 @@ public class HazelcastListener implements MessageListener<HazelcastMsg> {
     }
 
     @Override
-    public void onMessage(Message<HazelcastMsg> msg) {
+    public void onMessage(Message<KafkaMsg> msg) {
         try {
             if (!msg.getPublishingMember().equals(server.getHazelcastInstance().getCluster().getLocalMember())) {
-                HazelcastMsg hzMsg = msg.getMessageObject();
+                KafkaMsg hzMsg = msg.getMessageObject();
                 LOG.info("{} received from hazelcast for topic {} message: {}", hzMsg.getClientId(), hzMsg.getTopic(),
                     hzMsg.getPayload());
                 // TODO pass forward this information in somehow publishMessage.setLocal(false);

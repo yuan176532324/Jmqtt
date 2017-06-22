@@ -16,27 +16,40 @@
 
 package io.moquette.interception;
 
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ITopic;
 import io.moquette.interception.messages.InterceptPublishMessage;
-import io.moquette.server.Server;
 import io.netty.buffer.ByteBuf;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
 import static io.moquette.spi.impl.Utils.readBytesAndRewind;
 
-public class HazelcastInterceptHandler extends AbstractInterceptHandler {
+public class KafkaInterceptHandler extends AbstractInterceptHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HazelcastInterceptHandler.class);
-    private final HazelcastInstance hz;
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaInterceptHandler.class);
+    private static final Producer<String, KafkaMsg> producer;
 
-    public HazelcastInterceptHandler(Server server) {
-        this.hz = server.getHazelcastInstance();
+    static {
+        Properties producerProperties = new Properties();
+        InputStream in = ClassLoader.getSystemResourceAsStream("kafkaProducer.properties");
+        try {
+            producerProperties.load(in);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        producer = new KafkaProducer<String, KafkaMsg>(producerProperties);
     }
 
     @Override
     public String getID() {
-        return HazelcastInterceptHandler.class.getName() + "@" + hz.getName();
+        return null;
     }
 
     @Override
@@ -44,11 +57,12 @@ public class HazelcastInterceptHandler extends AbstractInterceptHandler {
         // TODO ugly, too much array copy
         ByteBuf payload = msg.getPayload();
         byte[] payloadContent = readBytesAndRewind(payload);
-
         LOG.info("{} publish on {} message: {}", msg.getClientID(), msg.getTopicName(), new String(payloadContent));
-        ITopic<KafkaMsg> topic = hz.getTopic("moquette");
+
         KafkaMsg kafkaMsg = new KafkaMsg(msg);
-        topic.publish(kafkaMsg);
+        ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>("p2pIn", kafkaMsg);
+        producer.send(record);
+
     }
 
 }

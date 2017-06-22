@@ -234,7 +234,7 @@ public class NettyAcceptor implements ServerAcceptor {
     private void initializeSSLTCPTransport(final NettyMQTTHandler handler, IConfig props, final SSLContext sslContext)
         throws IOException {
         LOG.info("Configuring SSL MQTT transport");
-        String sslPortProp = props.getProperty(SSL_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
+        String sslPortProp = props.getProperty(SSL_PORT_PROPERTY_NAME);
         if (DISABLED_PORT_BIND.equals(sslPortProp)) {
             // Do nothing no SSL configured
             LOG.info("Property {} has been set to {}. SSL MQTT will be disabled",

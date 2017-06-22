@@ -17,28 +17,26 @@
 package io.moquette.server;
 
 
-import com.aliyun.openservices.ons.api.ConsumeContext;
-import com.aliyun.openservices.ons.api.Message;
 import com.bigbigcloud.common.json.GsonFactory;
 import io.moquette.interception.KafkaMsg;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.mqtt.MqttFixedHeader;
-import io.netty.handler.codec.mqtt.MqttMessageType;
-import io.netty.handler.codec.mqtt.MqttPublishMessage;
-import io.netty.handler.codec.mqtt.MqttPublishVariableHeader;
-import io.netty.handler.codec.mqtt.MqttQoS;
+import io.netty.handler.codec.mqtt.*;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AliyunMessageListener extends AbstractInternalMessageListener<KafkaMsg> {
+public class KafkaMessageListener extends MessageListener<KafkaMsg> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AliyunMessageListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaMessageListener.class);
 
     private final Server server;
+    private final Consumer<String, KafkaMsg> consumer;
 
-    public AliyunMessageListener(Server server) {
+    public KafkaMessageListener(Server server, Consumer<String, KafkaMsg> consumer) {
         this.server = server;
+        this.consumer = consumer;
     }
 
     @Override
@@ -47,10 +45,36 @@ public class AliyunMessageListener extends AbstractInternalMessageListener<Kafka
     }
 
     @Override
-    protected void processMessageInternal(KafkaMsg kafkaMsg, Message message, ConsumeContext context) throws Exception {
+    public void run() {
+        LOG.info("begin to consume!");
+//        final int giveUp = 100;
+//        int noRecordsCount = 0;
+        while (true) {
+            final ConsumerRecords<String, KafkaMsg> consumerRecords = consumer.poll(1000);
+
+//            if (consumerRecords.count() == 0) {
+//                noRecordsCount++;
+//                if (noRecordsCount > giveUp) break;
+//                else continue;
+//            }
+
+            consumerRecords.forEach(record -> {
+                try {
+                    LOG.info("consume the message!");
+                    processMessageInternal(record.value());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            consumer.commitAsync();
+        }
+    }
+
+    @Override
+    protected void processMessageInternal(KafkaMsg kafkaMsg) throws Exception {
         try {
             LOG.info("{} received from aliyunMQ for topic {} message: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
-                new String(kafkaMsg.getPayload()));
+                    new String(kafkaMsg.getPayload()));
             // TODO pass forward this information in somehow publishMessage.setLocal(false);
 
             MqttQoS qos = MqttQoS.valueOf(kafkaMsg.getQos());

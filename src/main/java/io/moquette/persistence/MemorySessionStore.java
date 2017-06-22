@@ -155,6 +155,15 @@ public class MemorySessionStore implements ISessionsStore, ISubscriptionsStore {
     }
 
     @Override
+    public boolean isInBlackList(String clientID) {
+        return false;
+    }
+
+    @Override
+    public void putInBlackList(String clientID) {
+    }
+
+    @Override
     public List<ClientTopicCouple> listAllSubscriptions() {
         List<ClientTopicCouple> allSubscriptions = new ArrayList<>();
         for (Session entry : sessions.values()) {

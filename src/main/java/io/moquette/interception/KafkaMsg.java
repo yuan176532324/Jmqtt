@@ -19,11 +19,12 @@ package io.moquette.interception;
 import io.moquette.interception.messages.InterceptPublishMessage;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static io.moquette.spi.impl.Utils.readBytesAndRewind;
 
-public class HazelcastMsg implements Serializable {
+public class KafkaMsg implements Serializable {
 
     private static final long serialVersionUID = -1431584750134928273L;
     private int qos;
@@ -33,13 +34,40 @@ public class HazelcastMsg implements Serializable {
     private String clientId;
     private int messageId;
 
-    public HazelcastMsg(InterceptPublishMessage msg) {
+    public KafkaMsg() {
+    }
+
+    public KafkaMsg(InterceptPublishMessage msg) {
         this.clientId = msg.getClientID();
         this.topic = msg.getTopicName();
         this.qos = msg.getQos().value();
         this.payload = readBytesAndRewind(msg.getPayload());
         this.retained = msg.isRetainFlag();
         this.messageId = msg.getMessageId();
+    }
+
+    public void setQos(int qos) {
+        this.qos = qos;
+    }
+
+    public void setPayload(byte[] payload) {
+        this.payload = payload;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public void setRetained(boolean retained) {
+        this.retained = retained;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public void setMessageId(int messageId) {
+        this.messageId = messageId;
     }
 
     public String getClientId() {
@@ -64,5 +92,17 @@ public class HazelcastMsg implements Serializable {
 
     public int getMessageId() {
         return messageId;
+    }
+
+    @Override
+    public String toString() {
+        return "KafkaMsg{" +
+                "qos=" + qos +
+                ", payload=" + Arrays.toString(payload) +
+                ", topic='" + topic + '\'' +
+                ", retained=" + retained +
+                ", clientId='" + clientId + '\'' +
+                ", messageId=" + messageId +
+                '}';
     }
 }

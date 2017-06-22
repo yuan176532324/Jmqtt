@@ -68,18 +68,7 @@ class Qos1PublishHandler extends QosPublishHandler {
         IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setClientID(clientID);
 
-//        this.publisher.publish2Subscribers(toStoreMsg, topic, messageID);
-
         sendPubAck(clientID, messageID);
-
-//        if (msg.fixedHeader().isRetain()) {
-//            if (!msg.payload().isReadable()) {
-//                m_messagesStore.cleanRetained(topic);
-//            } else {
-//                // before wasn't stored
-//                m_messagesStore.storeRetained(topic, toStoreMsg);
-//            }
-//        }
 
         m_interceptor.notifyTopicPublished(msg, clientID, username);
     }

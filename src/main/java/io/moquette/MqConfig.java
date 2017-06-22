@@ -15,9 +15,7 @@
  */
 package io.moquette;
 
-/**
- * @author jixiang.jjx
- */
+
 public class MqConfig {
     /**
      * 启动测试之前请替换如下 XXX 为您的配置

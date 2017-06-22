@@ -46,7 +46,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     private ConcurrentMap<String, PersistentSession> m_persistentSessions;
     // maps clientID->[MessageId -> guid]
     private ConcurrentMap<String, ConcurrentMap<Integer, StoredMessage>> m_secondPhaseStore;
-
+    private ConcurrentMap<String, String> m_blacklist;
     private final RedissonClient m_db;
 
     public RedisSessionsStore(RedissonClient db) {
@@ -59,6 +59,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         m_inFlightIds = m_db.getMap("inflightPacketIDs");
         m_persistentSessions = m_db.getMap("sessions");
         m_secondPhaseStore = m_db.getMap("secondPhase");
+        m_blacklist = m_db.getMap("blackList");
     }
 
     @Override
@@ -172,7 +173,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     public Collection<ClientSession> getAllSessions() {
         Collection<ClientSession> result = new ArrayList<>();
         for (Map.Entry<String, PersistentSession> entry : m_persistentSessions.entrySet()) {
-            result.add(new ClientSession( entry.getValue().isActive(), entry.getKey(), this, this, entry.getValue().isCleanSession()));
+            result.add(new ClientSession(entry.getValue().isActive(), entry.getKey(), this, this, entry.getValue().isCleanSession()));
         }
         return result;
     }
@@ -181,6 +182,18 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     public void updateCleanStatus(String clientID, boolean cleanSession) {
         LOG.info("Updating cleanSession flag. CId={}, cleanSession={}", clientID, cleanSession);
         m_persistentSessions.put(clientID, new PersistentSession(cleanSession));
+    }
+
+    @Override
+    public boolean isInBlackList(String clientID) {
+        LOG.info("Check clientId is in blackList. CId={}", clientID);
+        return m_blacklist.containsKey("bl:" + clientID);
+    }
+
+    @Override
+    public void putInBlackList(String clientID) {
+        LOG.info("Put clientId is in blackList. CId={}", clientID);
+        m_blacklist.putIfAbsent("bl:" + clientID, "");
     }
 
     /**
@@ -192,7 +205,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         Set<Integer> inFlightForClient = this.m_inFlightIds.get(clientID);
         if (inFlightForClient == null) {
             int nextPacketId = 1;
-            inFlightForClient = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+            inFlightForClient = new HashSet<>();
             inFlightForClient.add(nextPacketId);
             this.m_inFlightIds.put(clientID, inFlightForClient);
             return nextPacketId;
@@ -214,7 +227,9 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
             LOG.error("Can't find the inFlight record for client <{}>", clientID);
             throw new RuntimeException("Can't find the inFlight record for client <" + clientID + ">");
         }
-        StoredMessage msg = m.remove(messageID);
+        LOG.info(m.toString());
+        StoredMessage msg = m.remove(String.valueOf(messageID));
+        LOG.info(msg.toString());
         this.outboundFlightMessages.put(clientID, m);
 
         // remove from the ids store

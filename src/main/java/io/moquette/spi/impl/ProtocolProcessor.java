@@ -34,6 +34,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -261,7 +262,12 @@ public class ProtocolProcessor {
             channel.close();
             return;
         }
-
+        //设置黑名单
+        if (m_sessionsStore.isInBlackList(clientId)) {
+            channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
+            channel.close();
+            return;
+        }
         ConnectionDescriptor descriptor = new ConnectionDescriptor(clientId, channel,
                 msg.variableHeader().isCleanSession());
         ConnectionDescriptor existing = this.connectionDescriptors.addConnection(descriptor);
@@ -269,6 +275,7 @@ public class ProtocolProcessor {
         if (isActive) {
             if (existing != null) {
                 LOG.info("The client ID is being used in an existing connection. It will be closed. CId={}", clientId);
+                channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
                 existing.abort();
                 return;
             }
@@ -469,11 +476,11 @@ public class ProtocolProcessor {
         String clientID = NettyUtils.clientID(channel);
         int messageID = msg.variableHeader().messageId();
         String username = NettyUtils.userName(channel);
-        LOG.trace("retrieving inflight for messageID <{}>", messageID);
+        LOG.info("retrieving inflight for messageID <{}>", messageID);
 
         ClientSession targetSession = m_sessionsStore.sessionForClient(clientID);
         StoredMessage inflightMsg = targetSession.inFlightAcknowledged(messageID);
-
+        LOG.info("inflightMsg is:" + inflightMsg.toString());
         String topic = inflightMsg.getTopic();
         InterceptAcknowledgedMessage wrapped = new InterceptAcknowledgedMessage(inflightMsg, topic, username, messageID);
         m_interceptor.notifyMessageAcknowledged(wrapped);

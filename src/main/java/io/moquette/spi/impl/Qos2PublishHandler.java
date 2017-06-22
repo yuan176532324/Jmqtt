@@ -24,6 +24,8 @@ import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.impl.subscriptions.SubscriptionsDirectory;
 import io.moquette.spi.impl.subscriptions.Topic;
 import io.moquette.spi.security.IAuthorizator;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
@@ -32,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import static io.moquette.spi.impl.DebugUtils.payload2Str;
 import static io.moquette.spi.impl.ProtocolProcessor.asStoredMessage;
 import static io.moquette.spi.impl.Utils.messageId;
+import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
@@ -87,7 +90,10 @@ class Qos2PublishHandler extends QosPublishHandler {
         int messageID = messageId(msg);
         LOG.info("Processing PUBREL message. CId={}, messageId={}", clientID, messageID);
         sendPubComp(clientID, messageID);
-        m_interceptor.notifyTopicPublished((MqttPublishMessage) msg, clientID, username);
+        MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.EXACTLY_ONCE, false, 0);
+        MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader("p2p", messageID);
+        MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, EMPTY_BUFFER);
+        m_interceptor.notifyTopicPublished(publishMessage, clientID, username);
     }
 
     private void sendPubRec(String clientID, int messageID) {

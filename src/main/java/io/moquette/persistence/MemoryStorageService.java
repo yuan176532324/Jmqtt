@@ -19,8 +19,6 @@ package io.moquette.persistence;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.IStore;
-import io.moquette.spi.ITreeNode;
-import org.redisson.api.RedissonClient;
 
 public class MemoryStorageService implements IStore {
 

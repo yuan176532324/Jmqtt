@@ -16,8 +16,6 @@
 
 package io.moquette.server;
 
-import com.aliyun.openservices.ons.api.Consumer;
-import com.aliyun.openservices.ons.api.ONSFactory;
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.FileSystemXmlConfig;
@@ -26,12 +24,11 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.ITopic;
 import io.moquette.BrokerConstants;
-import io.moquette.MqConfig;
 import io.moquette.connections.IConnectionsManager;
-import io.moquette.interception.AliyunInterceptHandler;
 import io.moquette.interception.HazelcastInterceptHandler;
-import io.moquette.interception.HazelcastMsg;
 import io.moquette.interception.InterceptHandler;
+import io.moquette.interception.KafkaInterceptHandler;
+import io.moquette.interception.KafkaMsg;
 import io.moquette.server.config.FileResourceLoader;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.IResourceLoader;
@@ -45,8 +42,11 @@ import io.moquette.spi.security.IAuthenticator;
 import io.moquette.spi.security.IAuthorizator;
 import io.moquette.spi.security.ISslContextCreator;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -78,7 +78,7 @@ public class Server {
 
     private ScheduledExecutorService scheduler;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         final Server server = new Server();
         server.startServer();
         System.out.println("Server started, version 0.10-SNAPSHOT");
@@ -97,7 +97,7 @@ public class Server {
      *
      * @throws IOException in case of any IO error.
      */
-    public void startServer() throws IOException {
+    public void startServer() throws Exception {
         File defaultConfigurationFile = defaultConfigFile();
         LOG.info("Starting Moquette server. Configuration file path={}", defaultConfigurationFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(defaultConfigurationFile);
@@ -116,7 +116,7 @@ public class Server {
      * @param configFile text file that contains the configuration.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(File configFile) throws IOException {
+    public void startServer(File configFile) throws Exception {
         LOG.info("Starting Moquette server. Configuration file path={}", configFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(configFile);
         final IConfig config = new ResourceLoaderConfig(filesystemLoader);
@@ -135,7 +135,7 @@ public class Server {
      * @param configProps the properties map to use as configuration.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(Properties configProps) throws IOException {
+    public void startServer(Properties configProps) throws Exception {
         LOG.info("Starting Moquette server using properties object");
         final IConfig config = new MemoryConfig(configProps);
         startServer(config);
@@ -147,7 +147,7 @@ public class Server {
      * @param config the configuration to use to start the broker.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(IConfig config) throws IOException {
+    public void startServer(IConfig config) throws Exception {
         LOG.info("Starting Moquette server using IConfig instance...");
         startServer(config, null);
     }
@@ -160,30 +160,29 @@ public class Server {
      * @param handlers the handlers to install in the broker.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
+    public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws Exception {
         LOG.info("Starting moquette server using IConfig instance and intercept handlers");
         startServer(config, handlers, null, null, null);
     }
 
     public void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
-                            IAuthenticator authenticator, IAuthorizator authorizator) throws IOException {
+                            IAuthenticator authenticator, IAuthorizator authorizator) throws Exception {
         if (handlers == null) {
             handlers = Collections.emptyList();
         }
         LOG.info("Starting Moquette Server. MQTT message interceptors={}", getInterceptorIds(handlers));
 
         scheduler = Executors.newScheduledThreadPool(1);
-        config.setProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME, AliyunInterceptHandler.class.getCanonicalName());
+        config.setProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME, KafkaInterceptHandler.class.getCanonicalName());
         final String handlerProp = System.getProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME);
         if (handlerProp != null) {
             config.setProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME, handlerProp);
         }
-        configureClusterForAliyunMQ();
         final String persistencePath = config.getProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME);
         LOG.info("Configuring Using persistent store file, path={}", persistencePath);
         m_processorBootstrapper = new ProtocolProcessorBootstrapper();
         final ProtocolProcessor processor = m_processorBootstrapper.init(config, handlers, authenticator, authorizator,
-            this);
+                this);
         LOG.info("Initialized MQTT protocol processor");
         if (sslCtxCreator == null) {
             LOG.warn("Using default SSL context creator");
@@ -197,6 +196,7 @@ public class Server {
 
         LOG.info("Moquette server has been initialized successfully");
         m_initialized = true;
+        configureKafka();
     }
 
     private void configureCluster(IConfig config) throws FileNotFoundException {
@@ -210,8 +210,8 @@ public class Server {
         if (hzConfigPath != null) {
             boolean isHzConfigOnClasspath = this.getClass().getClassLoader().getResource(hzConfigPath) != null;
             Config hzconfig = isHzConfigOnClasspath
-                ? new ClasspathXmlConfig(hzConfigPath)
-                : new FileSystemXmlConfig(hzConfigPath);
+                    ? new ClasspathXmlConfig(hzConfigPath)
+                    : new FileSystemXmlConfig(hzConfigPath);
             LOG.info("Starting Hazelcast instance. ConfigurationFile={}", hzconfig);
             hazelcastInstance = Hazelcast.newHazelcastInstance(hzconfig);
         } else {
@@ -221,19 +221,19 @@ public class Server {
         listenOnHazelCastMsg();
     }
 
-    private void configureClusterForAliyunMQ() throws IOException {
+    private void configureKafka() throws Exception {
         Properties consumerProperties = new Properties();
-        InputStream in = ClassLoader.getSystemResourceAsStream("application.properties");
+        InputStream in = ClassLoader.getSystemResourceAsStream("kafkaConsumer.properties");
         consumerProperties.load(in);
-        Consumer consumer = ONSFactory.createConsumer(consumerProperties);
-        consumer.subscribe(MqConfig.TOPIC, MqConfig.TAG2, new AliyunMessageListener(this));
-        consumer.start();
+        Consumer<String, KafkaMsg> consumer = new KafkaConsumer<String, KafkaMsg>(consumerProperties);
+        consumer.subscribe(Collections.singletonList("p2pOut"));
+        new KafkaMessageListener(this, consumer).start();
     }
 
     private void listenOnHazelCastMsg() {
         LOG.info("Subscribing to Hazelcast topic. TopicName={}", "moquette");
         HazelcastInstance hz = getHazelcastInstance();
-        ITopic<HazelcastMsg> topic = hz.getTopic("moquette");
+        ITopic<KafkaMsg> topic = hz.getTopic("moquette");
         topic.addMessageListener(new HazelcastListener(this));
     }
 
@@ -253,7 +253,7 @@ public class Server {
         final int messageID = msg.variableHeader().messageId();
         if (!m_initialized) {
             LOG.error("Moquette is not started, internal message cannot be published. CId={}, messageId={}", clientId,
-                messageID);
+                    messageID);
             throw new IllegalStateException("Can't publish on a server is not yet started");
         }
         LOG.debug("Publishing message. CId={}, messageId={}", clientId, messageID);
@@ -301,7 +301,7 @@ public class Server {
     public void addInterceptHandler(InterceptHandler interceptHandler) {
         if (!m_initialized) {
             LOG.error("Moquette is not started, MQTT message interceptor cannot be added. InterceptorId={}",
-                interceptHandler.getID());
+                    interceptHandler.getID());
             throw new IllegalStateException("Can't register interceptors on a server that is not yet started");
         }
         LOG.info("Adding MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
@@ -316,7 +316,7 @@ public class Server {
     public void removeInterceptHandler(InterceptHandler interceptHandler) {
         if (!m_initialized) {
             LOG.error("Moquette is not started, MQTT message interceptor cannot be removed. InterceptorId={}",
-                interceptHandler.getID());
+                    interceptHandler.getID());
             throw new IllegalStateException("Can't deregister interceptors from a server that is not yet started");
         }
         LOG.info("Removing MQTT message interceptor. InterceptorId={}", interceptHandler.getID());

@@ -19,8 +19,10 @@
         <netty.version>4.1.6.Final</netty.version>
         <bintray.repo>andsel/maven</bintray.repo>
         <bintray.package>io.moquette.moquette-broker</bintray.package>
-        <source.version>1.7</source.version>
-        <target.version>1.7</target.version>
+        <source.version>1.8</source.version>
+        <target.version>1.8</target.version>
+        <scala-binaries.version>2.10</scala-binaries.version>
+        <kafka.version>0.8.2.1</kafka.version>
     </properties>
 
     <dependencies>
@@ -35,7 +37,26 @@
         <!--<artifactId>mongodb-driver</artifactId>-->
         <!--<version>3.4.2</version>-->
         <!--</dependency>-->
-
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka_${scala-binaries.version}</artifactId>
+            <version>${kafka.version}</version>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>jmxri</artifactId>
+                    <groupId>com.sun.jmx</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>jms</artifactId>
+                    <groupId>javax.jms</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>jmxtools</artifactId>
+                    <groupId>com.sun.jdmk</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -58,6 +79,7 @@
             <artifactId>redisson</artifactId>
             <version>3.4.2</version>
         </dependency>
+
         <dependency>
             <groupId>com.aliyun.openservices</groupId>
             <artifactId>ons-client</artifactId>
@@ -173,6 +195,11 @@
             <artifactId>h2</artifactId>
             <version>1.4.191</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>0.10.0.0</version>
         </dependency>
     </dependencies>
 

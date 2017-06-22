@@ -17,7 +17,6 @@
 package io.moquette.spi;
 
 import io.moquette.spi.IMessagesStore.StoredMessage;
-import io.moquette.spi.impl.subscriptions.Subscription;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -33,6 +32,9 @@ public interface ISessionsStore {
 
     void updateCleanStatus(String clientID, boolean cleanSession);
 
+    boolean isInBlackList(String clientID);
+
+    void putInBlackList(String clientID);
     /**
      * @param clientID the session client ID.
      * @return true iff there are subscriptions persisted with clientID
