@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.server.ConnectionDescriptorStore;
 import io.moquette.spi.ClientSession;
 import io.moquette.spi.IMessagesStore;
@@ -60,7 +61,7 @@ class MessagesPublisher {
         return new MqttPublishMessage(fixedHeader, varHeader, message);
     }
 
-    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic, int messageID) throws IOException {
+    void publish2Subscribers(StoredMessage pubMsg, Topic topic, int messageID) throws IOException {
 //        if (LOG.isTraceEnabled()) {
 //            LOG.trace("Sending publish message to subscribers. CId={}, topic={}, messageId={}, payload={}, " +
 //                            "subscriptionTree={}", pubMsg.getClientID(), topic, messageID, DebugUtils.payload2Str(pubMsg.getPayload()),
@@ -72,7 +73,7 @@ class MessagesPublisher {
         publish2Subscribers(pubMsg, topic);
     }
 
-    void publish2Subscribers(IMessagesStore.StoredMessage pubMsg, Topic topic) throws IOException {
+    void publish2Subscribers(StoredMessage pubMsg, Topic topic) throws IOException {
         List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
         final String topic1 = pubMsg.getTopic();
         final MqttQoS publishingQos = pubMsg.getQos();
@@ -87,7 +88,7 @@ class MessagesPublisher {
             if (targetIsActive) {
                 LOG.debug("Sending PUBLISH message to active subscriber. CId={}, topicFilter={}, qos={}",
                         sub.getClientId(), sub.getTopicFilter(), qos);
-                // we need to retain because duplicate only copy r/w indexes and don't retain() causing
+                // we need to retain because duplicate only 'copy r/w indexes and don't retain() causing
                 // refCnt = 0
                 ByteBuf payload = origPayload.retainedDuplicate();
                 MqttPublishMessage publishMsg;

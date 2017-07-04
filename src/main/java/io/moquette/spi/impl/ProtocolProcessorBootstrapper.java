@@ -110,10 +110,10 @@ public class ProtocolProcessorBootstrapper {
         BrokerInterceptor interceptor = new BrokerInterceptor(props, observers);
 
         LOG.info("Configuring MQTT authenticator...");
-        String authenticatorClassName = props.getProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME, "");
+        String authenticatorClassName = props.getProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME);
 
         if (authenticator == null && !authenticatorClassName.isEmpty()) {
-            authenticator = loadClass(authenticatorClassName, IAuthenticator.class, IConfig.class, props);
+            authenticator = new BBCAuthenticator();
         }
 
         IResourceLoader resourceLoader = props.getResourceLoader();

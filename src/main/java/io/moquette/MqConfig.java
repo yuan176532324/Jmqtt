@@ -15,21 +15,24 @@
  */
 package io.moquette;
 
-
+/**
+ * @author jixiang.jjx
+ */
 public class MqConfig {
     /**
      * 启动测试之前请替换如下 XXX 为您的配置
      */
-    public static final String TOPIC = "bbc_device_dev";
-    public static final String PRODUCER_ID = "PID_bbc_device_dev";
-    public static final String CONSUMER_ID = "CID_bbc_device_dev-moquette_out_1";
+    public static final String TOPIC = "bbc_device_test";
+    public static final String PRODUCER_ID = "PID_bbc_device_test";
+    public static final String CONSUMER_ID = "CID_bbc_device_test-moquette_out";
     public static final String ORDER_TOPIC = "XXX";
     public static final String ORDER_PRODUCER_ID = "XXX";
     public static final String ORDER_CONSUMER_ID = "XXX";
-    public static final String ACCESS_KEY = "LTAI75kqgTHEf811";
-    public static final String SECRET_KEY = "6bpfNAhF4c5UXPuO5B6zBO6WZl5j6o";
+    public static final String ACCESS_KEY = "e08p6jex4S01w3FY";
+    public static final String SECRET_KEY = "f0WaeNRxWg1cJLbbMVka18woTpdi2E";
     public static final String TAG1 = "moquette_in";
     public static final String TAG2 = "moquette_out";
+    public static final String TAG3 = "device_conn_msg";
     /**
      * ONSADDR 请根据不同Region进行配置
      * 公网测试: http://onsaddr-internet.aliyun.com/rocketmq/nsaddr4client-internet

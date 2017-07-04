@@ -16,6 +16,7 @@
 
 package io.moquette.persistence.redis;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.spi.IMatchingCondition;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -28,6 +29,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+
+import static java.util.concurrent.TimeUnit.DAYS;
 
 /**
  * IMessagesStore implementation backed by MapDB.
@@ -47,6 +50,7 @@ public class RedisMessagesStore implements IMessagesStore {
     @Override
     public void initStore() {
         m_retainedStore = m_db.getMap("retained");
+        m_db.getMap("retained").expire(7, DAYS);
         LOG.info("Initialized store");
     }
 
@@ -78,7 +82,7 @@ public class RedisMessagesStore implements IMessagesStore {
     public void storeRetained(Topic topic, StoredMessage storedMessage) {
         LOG.debug("Store retained message for topic={}, CId={}", topic, storedMessage.getClientID());
         if (storedMessage.getClientID() == null) {
-            throw new IllegalArgumentException( "Message to be persisted must have a not null client ID");
+            throw new IllegalArgumentException("Message to be persisted must have a not null client ID");
         }
         m_retainedStore.put(topic, storedMessage);
     }

@@ -16,6 +16,7 @@
 
 package io.moquette.server;
 
+import com.aliyun.openservices.ons.api.ONSFactory;
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.FileSystemXmlConfig;
@@ -24,11 +25,9 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.ITopic;
 import io.moquette.BrokerConstants;
+import io.moquette.MqConfig;
 import io.moquette.connections.IConnectionsManager;
-import io.moquette.interception.HazelcastInterceptHandler;
-import io.moquette.interception.InterceptHandler;
-import io.moquette.interception.KafkaInterceptHandler;
-import io.moquette.interception.KafkaMsg;
+import io.moquette.interception.*;
 import io.moquette.server.config.FileResourceLoader;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.IResourceLoader;
@@ -197,6 +196,29 @@ public class Server {
         LOG.info("Moquette server has been initialized successfully");
         m_initialized = true;
         configureKafka();
+//        configureClusterForAliyunMQ();
+    }
+
+//    private static com.aliyun.openservices.ons.api.Consumer consumer;
+//
+//    static {
+//        Properties consumerProperties = new Properties();
+//        InputStream in = ClassLoader.getSystemResourceAsStream("application.properties");
+//        try {
+//            consumerProperties.load(in);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        consumer = ONSFactory.createConsumer(consumerProperties);
+//    }
+
+    private void configureClusterForAliyunMQ() throws IOException {
+        Properties consumerProperties = new Properties();
+        InputStream in = ClassLoader.getSystemResourceAsStream("application.properties");
+        consumerProperties.load(in);
+        com.aliyun.openservices.ons.api.Consumer consumer = ONSFactory.createConsumer(consumerProperties);
+        consumer.subscribe(MqConfig.TOPIC, MqConfig.TAG1, new AliyunMessageListener(this));
+        consumer.start();
     }
 
     private void configureCluster(IConfig config) throws FileNotFoundException {
@@ -221,13 +243,22 @@ public class Server {
         listenOnHazelCastMsg();
     }
 
-    private void configureKafka() throws Exception {
+    private KafkaMessageListener kafkaMessageListener = new KafkaMessageListener(this, consumer);
+    private static Consumer<String, KafkaMsg> consumer;
+    static {
         Properties consumerProperties = new Properties();
         InputStream in = ClassLoader.getSystemResourceAsStream("kafkaConsumer.properties");
-        consumerProperties.load(in);
-        Consumer<String, KafkaMsg> consumer = new KafkaConsumer<String, KafkaMsg>(consumerProperties);
-        consumer.subscribe(Collections.singletonList("p2pOut"));
-        new KafkaMessageListener(this, consumer).start();
+        try {
+            consumerProperties.load(in);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        consumer = new KafkaConsumer<String, KafkaMsg>(consumerProperties);
+        consumer.subscribe(Collections.singletonList("p2pOut1"));
+    }
+
+    private void configureKafka() throws Exception {
+        kafkaMessageListener.start();
     }
 
     private void listenOnHazelCastMsg() {

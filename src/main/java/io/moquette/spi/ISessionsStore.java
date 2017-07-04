@@ -16,7 +16,8 @@
 
 package io.moquette.spi;
 
-import io.moquette.spi.IMessagesStore.StoredMessage;
+
+import com.bigbigcloud.common.model.StoredMessage;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -105,7 +106,7 @@ public interface ISessionsStore {
     /**
      * @return the inflight inbound (PUBREL for Qos2) message.
      */
-    IMessagesStore.StoredMessage inboundInflight(String clientID, int messageID);
+    StoredMessage inboundInflight(String clientID, int messageID);
 
     void markAsInboundInflight(String clientID, int messageID, StoredMessage msg);
 

@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.server.ConnectionDescriptorStore;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.ClientSession;
@@ -73,7 +74,7 @@ class Qos2PublishHandler extends QosPublishHandler {
         }
         final int messageID = msg.variableHeader().messageId();
 
-        IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
+        StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setClientID(clientID);
         LOG.info("Sending publish message to subscribers CId={}, topic={}, messageId={}", clientID, topic, messageID);
         m_sessionsStore.sessionForClient(clientID).markAsInboundInflight(messageID, toStoreMsg);

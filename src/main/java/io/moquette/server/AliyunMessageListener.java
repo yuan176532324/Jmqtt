@@ -31,6 +31,8 @@ import io.netty.handler.codec.mqtt.MqttQoS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
+
 public class AliyunMessageListener extends AbstractInternalMessageListener<KafkaMsg> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AliyunMessageListener.class);
@@ -49,8 +51,8 @@ public class AliyunMessageListener extends AbstractInternalMessageListener<Kafka
     @Override
     protected void processMessageInternal(KafkaMsg kafkaMsg, Message message, ConsumeContext context) throws Exception {
         try {
-            LOG.info("{} received from aliyunMQ for topic {} message: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
-                new String(kafkaMsg.getPayload()));
+            LOG.info("{} received from aliyunMQ for topic {} message: {} time4: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
+                    new String(kafkaMsg.getPayload()), new Date().getTime());
             // TODO pass forward this information in somehow publishMessage.setLocal(false);
 
             MqttQoS qos = MqttQoS.valueOf(kafkaMsg.getQos());

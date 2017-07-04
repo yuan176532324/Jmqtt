@@ -16,13 +16,15 @@
 
 package io.moquette.persistence.redis;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.persistence.PersistentSession;
 import io.moquette.spi.ClientSession;
-import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.ISubscriptionsStore;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.Topic;
+import org.redisson.api.RBucket;
+import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * ISessionsStore implementation backed by MapDB.
@@ -40,13 +43,13 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     private static final Logger LOG = LoggerFactory.getLogger(RedisSessionsStore.class);
 
     // maps clientID->[MessageId -> msg]
-    private ConcurrentMap<String, ConcurrentMap<Integer, StoredMessage>> outboundFlightMessages;
+    private RMap<String, ConcurrentMap<Integer, StoredMessage>> outboundFlightMessages;
     // map clientID <-> set of currently in flight packet identifiers
-    private Map<String, Set<Integer>> m_inFlightIds;
-    private ConcurrentMap<String, PersistentSession> m_persistentSessions;
+    private RMap<String, Set<Integer>> m_inFlightIds;
+    private RMap<String, PersistentSession> m_persistentSessions;
     // maps clientID->[MessageId -> guid]
-    private ConcurrentMap<String, ConcurrentMap<Integer, StoredMessage>> m_secondPhaseStore;
-    private ConcurrentMap<String, String> m_blacklist;
+    private RMap<String, ConcurrentMap<Integer, StoredMessage>> m_secondPhaseStore;
+    private RMap<String, String> m_blacklist;
     private final RedissonClient m_db;
 
     public RedisSessionsStore(RedissonClient db) {
@@ -73,7 +76,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
                 newSubscription.getTopicFilter());
         final String clientID = newSubscription.getClientId();
         m_db.getMap("subscriptions_" + clientID).put(newSubscription.getTopicFilter(), newSubscription);
-
+        m_db.getMap("subscriptions_" + clientID).expire(7, TimeUnit.DAYS);
         if (LOG.isTraceEnabled()) {
             LOG.trace("Subscription has been added. ClientId={}, topics={}, clientSubscriptions={}",
                     newSubscription.getClientId(), newSubscription.getTopicFilter(),
@@ -154,6 +157,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         LOG.debug("Creating new session. CId={}, cleanSession={}", clientID, cleanSession);
         PersistentSession persistentSession = new PersistentSession(cleanSession);
         m_persistentSessions.putIfAbsent(clientID, persistentSession);
+        m_persistentSessions.expire(7, TimeUnit.DAYS);
         return new ClientSession(persistentSession.isActive(), clientID, this, this, cleanSession);
     }
 
@@ -228,7 +232,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
             throw new RuntimeException("Can't find the inFlight record for client <" + clientID + ">");
         }
         LOG.info(m.toString());
-        StoredMessage msg = m.remove(String.valueOf(messageID));
+        StoredMessage msg = m.remove(messageID);
         LOG.info(msg.toString());
         this.outboundFlightMessages.put(clientID, m);
 
@@ -375,7 +379,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     }
 
 
-    static String inboundMessageId2MessagesMapName(String clientID) {
+    private static String inboundMessageId2MessagesMapName(String clientID) {
         return "inboundInflight_" + clientID;
     }
 }

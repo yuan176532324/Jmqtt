@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -24,6 +25,8 @@ import io.netty.channel.Channel;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 import static io.moquette.spi.impl.ProtocolProcessor.asStoredMessage;
 
@@ -43,7 +46,7 @@ class Qos0PublishHandler extends QosPublishHandler {
         this.publisher = messagesPublisher;
     }
 
-    void receivedPublishQos0(Channel channel, MqttPublishMessage msg) {
+    void receivedPublishQos0(Channel channel, MqttPublishMessage msg) throws IOException {
         // verify if topic can be write
         final Topic topic = new Topic(msg.variableHeader().topicName());
         String clientID = NettyUtils.clientID(channel);
@@ -54,7 +57,7 @@ class Qos0PublishHandler extends QosPublishHandler {
         }
 
         // route message to subscribers
-        IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
+        StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setClientID(clientID);
 
         m_interceptor.notifyTopicPublished(msg, clientID, username);

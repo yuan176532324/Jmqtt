@@ -16,7 +16,8 @@
 
 package io.moquette.interception.messages;
 
-import static io.moquette.spi.IMessagesStore.StoredMessage;
+
+import com.bigbigcloud.common.model.StoredMessage;
 
 public class InterceptAcknowledgedMessage implements InterceptMessage {
 

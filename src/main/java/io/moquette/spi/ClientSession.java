@@ -16,6 +16,7 @@
 
 package io.moquette.spi;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.spi.ISubscriptionsStore.ClientTopicCouple;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -50,14 +51,14 @@ public class ClientSession {
          * @param messageID the packet ID used in transmission
          * @param msg       the message to put in flight zone
          */
-        void waitingAck(int messageID, IMessagesStore.StoredMessage msg) {
+        void waitingAck(int messageID, StoredMessage msg) {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Adding to inflight {}, guid <{}>", messageID, msg.getGuid());
             }
             m_sessionsStore.inFlight(ClientSession.this.clientID, messageID, msg);
         }
 
-        IMessagesStore.StoredMessage acknowledged(int messageID) {
+        StoredMessage acknowledged(int messageID) {
             if (LOG.isTraceEnabled())
                 LOG.trace("Acknowledging inflight, clientID <{}> messageID {}", ClientSession.this.clientID, messageID);
             return m_sessionsStore.inFlightAck(ClientSession.this.clientID, messageID);
@@ -66,11 +67,11 @@ public class ClientSession {
 
     class InboundFlightZone {
 
-        public IMessagesStore.StoredMessage lookup(int messageID) {
+        public StoredMessage lookup(int messageID) {
             return m_sessionsStore.inboundInflight(clientID, messageID);
         }
 
-        public void waitingRel(int messageID, IMessagesStore.StoredMessage msg) {
+        public void waitingRel(int messageID, StoredMessage msg) {
             m_sessionsStore.markAsInboundInflight(clientID, messageID, msg);
         }
     }
@@ -110,7 +111,7 @@ public class ClientSession {
      *
      * @return the list of messages to be delivered for client related to the session.
      */
-    public BlockingQueue<IMessagesStore.StoredMessage> queue() {
+    public BlockingQueue<StoredMessage> queue() {
         LOG.info("Retrieving enqueued messages. ClientId={}", clientID);
         return this.m_sessionsStore.queue(clientID);
     }
@@ -183,7 +184,7 @@ public class ClientSession {
         return this.m_sessionsStore.nextPacketID(this.clientID);
     }
 
-    public IMessagesStore.StoredMessage inFlightAcknowledged(int messageID) {
+    public StoredMessage inFlightAcknowledged(int messageID) {
         return outboundFlightZone.acknowledged(messageID);
     }
 
@@ -192,14 +193,14 @@ public class ClientSession {
      *
      * @return the packetID for the message in flight.
      */
-    public int inFlightAckWaiting(IMessagesStore.StoredMessage msg) {
+    public int inFlightAckWaiting(StoredMessage msg) {
         LOG.debug("Adding message ot inflight zone. ClientId={}", clientID);
         int messageId = ClientSession.this.nextPacketId();
         outboundFlightZone.waitingAck(messageId, msg);
         return messageId;
     }
 
-    public IMessagesStore.StoredMessage secondPhaseAcknowledged(int messageID) {
+    public StoredMessage secondPhaseAcknowledged(int messageID) {
         return m_sessionsStore.secondPhaseAcknowledged(clientID, messageID);
     }
 
@@ -208,19 +209,19 @@ public class ClientSession {
      *
      * @param message the message to enqueue.
      */
-    public void enqueue(IMessagesStore.StoredMessage message) {
+    public void enqueue(StoredMessage message) {
         this.m_sessionsStore.queue(this.clientID).add(message);
     }
 
-    public IMessagesStore.StoredMessage inboundInflight(int messageID) {
+    public StoredMessage inboundInflight(int messageID) {
         return inboundFlightZone.lookup(messageID);
     }
 
-    public void markAsInboundInflight(int messageID, IMessagesStore.StoredMessage msg) {
+    public void markAsInboundInflight(int messageID, StoredMessage msg) {
         inboundFlightZone.waitingRel(messageID, msg);
     }
 
-    public void moveInFlightToSecondPhaseAckWaiting(int messageID, IMessagesStore.StoredMessage msg) {
+    public void moveInFlightToSecondPhaseAckWaiting(int messageID, StoredMessage msg) {
         m_sessionsStore.moveInFlightToSecondPhaseAckWaiting(this.clientID, messageID, msg);
     }
 

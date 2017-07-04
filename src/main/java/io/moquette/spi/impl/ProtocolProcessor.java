@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.interception.messages.InterceptAcknowledgedMessage;
 import io.moquette.persistence.redis.RedissonUtil;
@@ -23,7 +24,6 @@ import io.moquette.server.ConnectionDescriptor;
 import io.moquette.server.ConnectionDescriptorStore;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.*;
-import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsDirectory;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -41,10 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -258,10 +255,10 @@ public class ProtocolProcessor {
                     payload.userName());
         }
 
-        if (!login(channel, msg, clientId)) {
-            channel.close();
-            return;
-        }
+//        if (!login(channel, msg, clientId)) {
+//            channel.close();
+//            return;
+//        }
         //设置黑名单
         if (m_sessionsStore.isInBlackList(clientId)) {
             channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
@@ -288,7 +285,7 @@ public class ProtocolProcessor {
             return;
         }
         //发送连接成功事件
-        m_interceptor.notifyClientConnected(msg);
+        m_interceptor.notifyClientConnected(msg, channel);
 
         final ClientSession clientSession = createOrLoadClientSession(descriptor, msg, clientId);
         if (clientSession == null) {
@@ -486,20 +483,19 @@ public class ProtocolProcessor {
         m_interceptor.notifyMessageAcknowledged(wrapped);
     }
 
-    public static IMessagesStore.StoredMessage asStoredMessage(MqttPublishMessage msg) {
+    public static StoredMessage asStoredMessage(MqttPublishMessage msg) {
         // TODO ugly, too much array copy
         ByteBuf payload = msg.payload();
         byte[] payloadContent = readBytesAndRewind(payload);
 
-        IMessagesStore.StoredMessage stored = new IMessagesStore.StoredMessage(payloadContent,
+        StoredMessage stored = new StoredMessage(payloadContent,
                 msg.fixedHeader().qosLevel(), msg.variableHeader().topicName());
         stored.setRetained(msg.fixedHeader().isRetain());
         return stored;
     }
 
-    private static IMessagesStore.StoredMessage asStoredMessage(WillMessage will) {
-        IMessagesStore.StoredMessage pub = new IMessagesStore.StoredMessage(will.getPayload().array(), will.getQos(),
-                will.getTopic());
+    private static StoredMessage asStoredMessage(WillMessage will) {
+        StoredMessage pub = new StoredMessage(will.getPayload().array(), will.getQos(), will.getTopic());
         pub.setRetained(will.isRetained());
         return pub;
     }
@@ -507,8 +503,8 @@ public class ProtocolProcessor {
     public void processPublish(Channel channel, MqttPublishMessage msg) {
         final MqttQoS qos = msg.fixedHeader().qosLevel();
         final String clientId = NettyUtils.clientID(channel);
-        LOG.info("Processing PUBLISH message. CId={}, topic={}, messageId={}, qos={}", clientId,
-                msg.variableHeader().topicName(), msg.variableHeader().messageId(), qos);
+        LOG.info("Processing PUBLISH message. CId={}, topic={}, messageId={}, qos={} ,time1={}", clientId,
+                msg.variableHeader().topicName(), msg.variableHeader().messageId(), qos, new Date().getTime());
         switch (qos) {
             case AT_MOST_ONCE:
                 this.qos0PublishHandler.receivedPublishQos0(channel, msg);
@@ -541,7 +537,7 @@ public class ProtocolProcessor {
         LOG.info("Sending PUBLISH message. Topic={}, qos={}", topic, qos);
 
         MessageGUID messageGUID = null;
-        IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
+        StoredMessage toStoreMsg = asStoredMessage(msg);
         if (clientId == null || clientId.isEmpty()) {
             toStoreMsg.setClientID("BROKER_SELF");
         } else {
@@ -567,7 +563,7 @@ public class ProtocolProcessor {
         LOG.info("Publishing will message. CId={}, topic={}", clientID, will.getTopic());
         // it has just to publish the message downstream to the subscribers
         // NB it's a will publish, it needs a PacketIdentifier for this conn, default to 1
-        IMessagesStore.StoredMessage tobeStored = asStoredMessage(will);
+        StoredMessage tobeStored = asStoredMessage(will);
         tobeStored.setClientID(clientID);
         Topic topic = new Topic(tobeStored.getTopic());
         this.messagesPublisher.publish2Subscribers(tobeStored, topic);
@@ -648,7 +644,7 @@ public class ProtocolProcessor {
             return;
         }
 
-        if (!cleanWillMessageAndNotifyInterceptor(existingDescriptor, clientID)) {
+        if (!cleanWillMessageAndNotifyInterceptor(existingDescriptor, clientID, channel.remoteAddress().toString())) {
             LOG.warn("Unable to drop will message. Closing connection. CId={}", clientID);
             existingDescriptor.abort();
             return;
@@ -698,7 +694,7 @@ public class ProtocolProcessor {
         return true;
     }
 
-    private boolean cleanWillMessageAndNotifyInterceptor(ConnectionDescriptor descriptor, String clientID) {
+    private boolean cleanWillMessageAndNotifyInterceptor(ConnectionDescriptor descriptor, String clientID, String ip) {
         final boolean success = descriptor.assignState(MESSAGES_DROPPED, INTERCEPTORS_NOTIFIED);
         if (!success) {
             return false;
@@ -708,7 +704,7 @@ public class ProtocolProcessor {
         // cleanup the will store
         m_willStore.remove(clientID);
         String username = descriptor.getUsername();
-        m_interceptor.notifyClientDisconnected(clientID, username);
+        m_interceptor.notifyClientDisconnected(clientID, username, ip);
         return true;
     }
 
@@ -885,7 +881,7 @@ public class ProtocolProcessor {
 
         // scans retained messages to be published to the new subscription
         // TODO this is ugly, it does a linear scan on potential big dataset
-        Collection<IMessagesStore.StoredMessage> messages = m_messagesStore.searchMatching(new IMatchingCondition() {
+        Collection<StoredMessage> messages = m_messagesStore.searchMatching(new IMatchingCondition() {
 
             @Override
             public boolean match(Topic key) {

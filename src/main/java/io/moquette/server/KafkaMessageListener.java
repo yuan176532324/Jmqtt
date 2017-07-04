@@ -50,7 +50,7 @@ public class KafkaMessageListener extends MessageListener<KafkaMsg> {
 //        final int giveUp = 100;
 //        int noRecordsCount = 0;
         while (true) {
-            final ConsumerRecords<String, KafkaMsg> consumerRecords = consumer.poll(1000);
+            final ConsumerRecords<String, KafkaMsg> consumerRecords = consumer.poll(10000);
 
 //            if (consumerRecords.count() == 0) {
 //                noRecordsCount++;

@@ -16,9 +16,9 @@
 
 package io.moquette.persistence;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.server.Constants;
 import io.moquette.spi.ClientSession;
-import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.ISubscriptionsStore;
 import io.moquette.spi.impl.subscriptions.Subscription;

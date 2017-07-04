@@ -18,12 +18,14 @@ package io.moquette.interception.messages;
 
 public class InterceptDisconnectMessage implements InterceptMessage {
 
-    private final String clientID;
-    private final String username;
+    private  String clientID;
+    private  String username;
+    private  String ip;
 
-    public InterceptDisconnectMessage(String clientID, String username) {
+    public InterceptDisconnectMessage(String clientID, String username, String ip) {
         this.clientID = clientID;
         this.username = username;
+        this.ip = ip;
     }
 
     public String getClientID() {
@@ -32,5 +34,21 @@ public class InterceptDisconnectMessage implements InterceptMessage {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setClientID(String clientID) {
+        this.clientID = clientID;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 }

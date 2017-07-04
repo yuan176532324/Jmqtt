@@ -16,6 +16,7 @@
 
 package io.moquette.persistence;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.spi.IMatchingCondition;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.impl.subscriptions.Topic;

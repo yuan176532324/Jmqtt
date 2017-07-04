@@ -16,6 +16,7 @@
 
 package io.moquette.spi;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.spi.impl.subscriptions.Topic;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -29,68 +30,6 @@ import java.util.Collection;
  * Defines the SPI to be implemented by a StorageService that handle persistence of messages
  */
 public interface IMessagesStore {
-
-    class StoredMessage implements Serializable {
-
-        private static final long serialVersionUID = 1755296138639817304L;
-        private MqttQoS m_qos;
-        private byte[] m_payload;
-        private String m_topic;
-        private boolean m_retained;
-        private String m_clientID;
-        private MessageGUID m_guid;
-
-        public StoredMessage() {
-        }
-
-        public StoredMessage(byte[] message, MqttQoS qos, String topic) {
-            m_qos = qos;
-            m_payload = message;
-            m_topic = topic;
-        }
-
-        public MqttQoS getQos() {
-            return m_qos;
-        }
-
-        public String getTopic() {
-            return m_topic;
-        }
-
-        public void setGuid(MessageGUID guid) {
-            this.m_guid = guid;
-        }
-
-        public MessageGUID getGuid() {
-            return m_guid;
-        }
-
-        public String getClientID() {
-            return m_clientID;
-        }
-
-        public void setClientID(String m_clientID) {
-            this.m_clientID = m_clientID;
-        }
-
-        public ByteBuf getPayload() {
-            return Unpooled.copiedBuffer(m_payload);
-        }
-
-        public void setRetained(boolean retained) {
-            this.m_retained = retained;
-        }
-
-        public boolean isRetained() {
-            return m_retained;
-        }
-
-        @Override
-        public String toString() {
-            return "PublishEvent{clientID='" + m_clientID + '\'' + ", m_retain="
-                    + m_retained + ", m_qos=" + m_qos + ", m_topic='" + m_topic + '\'' + '}';
-        }
-    }
 
     /**
      * Used to initialize all persistent store structures

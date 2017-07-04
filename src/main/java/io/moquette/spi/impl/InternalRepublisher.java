@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import com.bigbigcloud.common.model.StoredMessage;
 import io.moquette.spi.ClientSession;
 import io.moquette.spi.IMessagesStore;
 import io.netty.buffer.ByteBuf;
@@ -37,8 +38,8 @@ class InternalRepublisher {
         this.messageSender = messageSender;
     }
 
-    void publishRetained(ClientSession targetSession, Collection<IMessagesStore.StoredMessage> messages) {
-        for (IMessagesStore.StoredMessage storedMsg : messages) {
+    void publishRetained(ClientSession targetSession, Collection<StoredMessage> messages) {
+        for (StoredMessage storedMsg : messages) {
             // fire as retained the message
             MqttPublishMessage publishMsg = retainedPublish(storedMsg);
             if (storedMsg.getQos() != MqttQoS.AT_MOST_ONCE) {
@@ -54,11 +55,11 @@ class InternalRepublisher {
         }
     }
 
-    void publishStored(ClientSession clientSession, BlockingQueue<IMessagesStore.StoredMessage> publishedEvents) {
-        List<IMessagesStore.StoredMessage> storedPublishes = new ArrayList<>();
+    void publishStored(ClientSession clientSession, BlockingQueue<StoredMessage> publishedEvents) {
+        List<StoredMessage> storedPublishes = new ArrayList<>();
         publishedEvents.drainTo(storedPublishes);
 
-        for (IMessagesStore.StoredMessage pubEvt : storedPublishes) {
+        for (StoredMessage pubEvt : storedPublishes) {
             // put in flight zone
             LOG.debug("Adding message ot inflight zone. ClientId={}, guid={}, topic={}", clientSession.clientID,
                 pubEvt.getGuid(), pubEvt.getTopic());
@@ -72,22 +73,22 @@ class InternalRepublisher {
         }
     }
 
-    private MqttPublishMessage notRetainedPublish(IMessagesStore.StoredMessage storedMessage, Integer messageID) {
+    private MqttPublishMessage notRetainedPublish(StoredMessage storedMessage, Integer messageID) {
         return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getPayload(), false,
             messageID);
     }
 
-    private MqttPublishMessage notRetainedPublish(IMessagesStore.StoredMessage storedMessage) {
+    private MqttPublishMessage notRetainedPublish(StoredMessage storedMessage) {
         return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getPayload(), false,
             0);
     }
 
-    private MqttPublishMessage retainedPublish(IMessagesStore.StoredMessage storedMessage) {
+    private MqttPublishMessage retainedPublish(StoredMessage storedMessage) {
         return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getPayload(), true,
             0);
     }
 
-    private MqttPublishMessage retainedPublish(IMessagesStore.StoredMessage storedMessage, Integer packetID) {
+    private MqttPublishMessage retainedPublish(StoredMessage storedMessage, Integer packetID) {
         return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getPayload(), true,
             packetID);
     }

@@ -21,10 +21,20 @@ import io.netty.handler.codec.mqtt.MqttConnectMessage;
 public class InterceptConnectMessage extends InterceptAbstractMessage {
 
     private final MqttConnectMessage msg;
+    private String ip;
 
-    public InterceptConnectMessage(MqttConnectMessage msg) {
+    public InterceptConnectMessage(MqttConnectMessage msg, String ip) {
         super(msg);
         this.msg = msg;
+        this.ip = ip;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 
     public String getClientID() {

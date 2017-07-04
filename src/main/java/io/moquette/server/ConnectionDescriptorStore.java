@@ -29,8 +29,10 @@ import io.netty.handler.codec.mqtt.MqttMessage;
 import io.netty.handler.codec.mqtt.MqttMessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -70,6 +72,7 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
                 return false;
             }
             descriptor.writeAndFlush(message);
+            LOG.info("msg get is time5:" + new Date().getTime());
             return true;
         } catch (Throwable e) {
             String errorMsg = "Unable to send " + messageType + " message. CId=<" + clientID + ">";
