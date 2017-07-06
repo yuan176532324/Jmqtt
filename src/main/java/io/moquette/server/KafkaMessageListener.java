@@ -73,7 +73,7 @@ public class KafkaMessageListener extends MessageListener<KafkaMsg> {
     @Override
     protected void processMessageInternal(KafkaMsg kafkaMsg) throws Exception {
         try {
-            LOG.info("{} received from aliyunMQ for topic {} message: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
+            LOG.info("{} received from kafka for topic {} message: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
                     new String(kafkaMsg.getPayload()));
             // TODO pass forward this information in somehow publishMessage.setLocal(false);
 
@@ -84,7 +84,7 @@ public class KafkaMessageListener extends MessageListener<KafkaMsg> {
             MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
             server.internalPublish(publishMessage, kafkaMsg.getClientId());
         } catch (Exception ex) {
-            LOG.error("error polling aliyunMQ msg queue", ex);
+            LOG.error("error polling kafka msg queue", ex);
         }
     }
 }

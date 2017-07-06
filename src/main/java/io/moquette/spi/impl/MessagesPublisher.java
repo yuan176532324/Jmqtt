@@ -74,6 +74,7 @@ class MessagesPublisher {
     }
 
     void publish2Subscribers(StoredMessage pubMsg, Topic topic) throws IOException {
+        boolean targetIsActive = true;
         List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
         final String topic1 = pubMsg.getTopic();
         final MqttQoS publishingQos = pubMsg.getQos();
@@ -83,7 +84,7 @@ class MessagesPublisher {
             MqttQoS qos = lowerQosToTheSubscriptionDesired(sub, publishingQos);
             ClientSession targetSession = m_sessionsStore.sessionForClient(sub.getClientId());
 
-            boolean targetIsActive = m_sessionsStore.getSessionStatus(sub.getClientId());
+//            targetIsActive = m_sessionsStore.getSessionStatus(sub.getClientId());
 //TODO move all this logic into messageSender, which puts into the flightZone only the messages that pull out of the queue.
             if (targetIsActive) {
                 LOG.debug("Sending PUBLISH message to active subscriber. CId={}, topicFilter={}, qos={}",

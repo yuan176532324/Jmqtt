@@ -46,6 +46,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static io.moquette.server.CountUtils.counts;
 import static io.moquette.spi.impl.InternalRepublisher.createPublishForQos;
 import static io.moquette.spi.impl.Utils.messageId;
 import static io.moquette.spi.impl.Utils.readBytesAndRewind;
@@ -500,7 +501,7 @@ public class ProtocolProcessor {
         return pub;
     }
 
-    public void processPublish(Channel channel, MqttPublishMessage msg) {
+    public void processPublish(Channel channel, MqttPublishMessage msg) throws IOException {
         final MqttQoS qos = msg.fixedHeader().qosLevel();
         final String clientId = NettyUtils.clientID(channel);
         LOG.info("Processing PUBLISH message. CId={}, topic={}, messageId={}, qos={} ,time1={}", clientId,

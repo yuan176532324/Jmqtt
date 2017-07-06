@@ -171,7 +171,7 @@ public class Server {
         }
         LOG.info("Starting Moquette Server. MQTT message interceptors={}", getInterceptorIds(handlers));
 
-        scheduler = Executors.newScheduledThreadPool(1);
+        scheduler = Executors.newScheduledThreadPool(8);
         config.setProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME, KafkaInterceptHandler.class.getCanonicalName());
         final String handlerProp = System.getProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME);
         if (handlerProp != null) {
@@ -243,22 +243,23 @@ public class Server {
         listenOnHazelCastMsg();
     }
 
-    private KafkaMessageListener kafkaMessageListener = new KafkaMessageListener(this, consumer);
-    private static Consumer<String, KafkaMsg> consumer;
-    static {
-        Properties consumerProperties = new Properties();
-        InputStream in = ClassLoader.getSystemResourceAsStream("kafkaConsumer.properties");
-        try {
-            consumerProperties.load(in);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        consumer = new KafkaConsumer<String, KafkaMsg>(consumerProperties);
-        consumer.subscribe(Collections.singletonList("p2pOut1"));
-    }
+//    private static Consumer<String, KafkaMsg> consumer;
+//
+//    static {
+//        Properties consumerProperties = new Properties();
+//        InputStream in = ClassLoader.getSystemResourceAsStream("kafkaConsumer.properties");
+//        try {
+//            consumerProperties.load(in);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        consumer = new KafkaConsumer<String, KafkaMsg>(consumerProperties);
+//        consumer.subscribe(Collections.singletonList("p2pOut4"));
+//    }
 
     private void configureKafka() throws Exception {
-        kafkaMessageListener.start();
+        MultiThreadHLConsumer multiThreadHLConsumer = new MultiThreadHLConsumer("p2pOut1", this);
+        multiThreadHLConsumer.testConsumer(8);
     }
 
     private void listenOnHazelCastMsg() {

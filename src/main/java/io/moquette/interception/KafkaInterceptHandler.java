@@ -104,12 +104,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
             default:
                 break;
         }
-
-        Thread thread = new Thread(() -> {
-            producer.send(record);
-
-        });
-        thread.start();
+        producer.send(record);
     }
 
     private String getTopicName(String topic) {
