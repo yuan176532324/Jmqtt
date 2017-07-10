@@ -15,6 +15,8 @@
  */
 package com.bigibgcloud.spi.impl.subscriptions;
 
+import com.bigbigcloud.spi.impl.subscriptions.Token;
+import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;

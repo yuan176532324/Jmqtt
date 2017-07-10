@@ -16,6 +16,7 @@
 
 package com.bigibgcloud.server.config;
 
+import com.bigbigcloud.server.config.ConfigurationParser;
 import org.junit.Before;
 import org.junit.Test;
 import java.io.Reader;

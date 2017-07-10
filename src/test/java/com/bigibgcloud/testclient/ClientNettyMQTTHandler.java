@@ -16,7 +16,7 @@
 
 package com.bigibgcloud.testclient;
 
-import com.bigibgcloud.server.netty.NettyMQTTHandler;
+import com.bigbigcloud.server.netty.NettyMQTTHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;

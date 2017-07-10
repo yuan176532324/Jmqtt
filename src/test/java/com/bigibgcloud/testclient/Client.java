@@ -16,8 +16,8 @@
 
 package com.bigibgcloud.testclient;
 
-import com.bigibgcloud.BrokerConstants;
-import com.bigibgcloud.server.netty.MessageBuilder;
+import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.server.netty.MessageBuilder;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;

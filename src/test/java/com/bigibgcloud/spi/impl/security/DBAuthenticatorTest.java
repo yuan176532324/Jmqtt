@@ -16,6 +16,7 @@
 
 package com.bigibgcloud.spi.impl.security;
 
+import com.bigbigcloud.spi.impl.security.DBAuthenticator;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.*;
 import org.slf4j.Logger;

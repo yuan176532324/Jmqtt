@@ -43,7 +43,7 @@
         <appender-ref ref="ASYNC"/>
     </logger>
 
-    <logger name="io.moquette" level="DEBUG" additivity="false">
+    <logger name="com.bigbigcloud" level="DEBUG" additivity="false">
         <appender-ref ref="ASYNC"/>
     </logger>
 

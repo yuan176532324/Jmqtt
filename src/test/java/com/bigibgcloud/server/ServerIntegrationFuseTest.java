@@ -16,8 +16,8 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.server.config.MemoryConfig;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.MemoryConfig;
 import org.fusesource.mqtt.client.*;
 import org.junit.After;
 import org.junit.Before;

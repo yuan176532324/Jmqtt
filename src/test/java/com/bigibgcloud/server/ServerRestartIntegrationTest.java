@@ -16,8 +16,8 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.server.config.MemoryConfig;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.MemoryConfig;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.junit.After;

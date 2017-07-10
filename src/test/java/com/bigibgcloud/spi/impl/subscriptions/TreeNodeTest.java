@@ -16,6 +16,9 @@
 
 package com.bigibgcloud.spi.impl.subscriptions;
 
+import com.bigbigcloud.spi.impl.subscriptions.Token;
+import com.bigbigcloud.spi.impl.subscriptions.Topic;
+import com.bigbigcloud.spi.impl.subscriptions.TreeNode;
 import org.junit.Test;
 
 import java.io.IOException;

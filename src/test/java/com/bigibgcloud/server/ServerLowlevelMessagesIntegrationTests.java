@@ -16,8 +16,8 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.server.config.MemoryConfig;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.MemoryConfig;
 import com.bigibgcloud.testclient.Client;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.codec.mqtt.MqttMessage;

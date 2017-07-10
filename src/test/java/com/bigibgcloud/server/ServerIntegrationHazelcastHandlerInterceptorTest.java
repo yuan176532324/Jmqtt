@@ -16,10 +16,10 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.BrokerConstants;
-import com.bigibgcloud.interception.HazelcastInterceptHandler;
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.server.config.MemoryConfig;
+import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.interception.HazelcastInterceptHandler;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.MemoryConfig;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClientPersistence;

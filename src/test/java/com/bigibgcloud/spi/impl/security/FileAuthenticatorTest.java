@@ -16,7 +16,8 @@
 
 package com.bigibgcloud.spi.impl.security;
 
-import com.bigibgcloud.spi.security.IAuthenticator;
+import com.bigbigcloud.spi.impl.security.FileAuthenticator;
+import com.bigbigcloud.spi.security.IAuthenticator;
 import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

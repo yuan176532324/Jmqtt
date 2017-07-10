@@ -18,7 +18,11 @@ package com.bigibgcloud.server.config;
 
 import static org.junit.Assert.*;
 
-import com.bigibgcloud.BrokerConstants;
+import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.server.config.ClasspathResourceLoader;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.IResourceLoader;
+import com.bigbigcloud.server.config.ResourceLoaderConfig;
 import org.junit.Assert;
 import org.junit.Test;
 

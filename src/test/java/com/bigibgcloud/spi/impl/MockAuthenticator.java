@@ -19,7 +19,7 @@ package com.bigibgcloud.spi.impl;
 import java.util.Map;
 import java.util.Set;
 
-import com.bigibgcloud.spi.security.IAuthenticator;
+import com.bigbigcloud.spi.security.IAuthenticator;
 
 /**
  * Test utility to implements authenticator instance.

@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 
-import com.bigibgcloud.BrokerConstants;
+import com.bigbigcloud.BrokerConstants;
 import com.bigibgcloud.server.Server;
 import com.bigibgcloud.testclient.RawClient;
 import org.junit.After;

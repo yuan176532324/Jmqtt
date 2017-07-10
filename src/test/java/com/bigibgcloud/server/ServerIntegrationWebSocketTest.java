@@ -16,9 +16,9 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.BrokerConstants;
-import com.bigibgcloud.server.config.MemoryConfig;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.server.config.MemoryConfig;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;

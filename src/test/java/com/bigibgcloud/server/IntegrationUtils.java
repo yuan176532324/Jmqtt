@@ -18,9 +18,9 @@ package com.bigibgcloud.server;
 
 import java.io.File;
 import java.util.Properties;
-import static com.bigibgcloud.BrokerConstants.DEFAULT_MOQUETTE_STORE_MAP_DB_FILENAME;
-import static com.bigibgcloud.BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME;
-import static com.bigibgcloud.BrokerConstants.PORT_PROPERTY_NAME;
+import static com.bigbigcloud.BrokerConstants.DEFAULT_MOQUETTE_STORE_MAP_DB_FILENAME;
+import static com.bigbigcloud.BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME;
+import static com.bigbigcloud.BrokerConstants.PORT_PROPERTY_NAME;
 
 /**
  * Used to carry integration configurations.

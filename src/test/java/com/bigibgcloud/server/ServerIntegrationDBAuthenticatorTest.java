@@ -16,10 +16,10 @@
 
 package com.bigibgcloud.server;
 
-import com.bigibgcloud.BrokerConstants;
-import com.bigibgcloud.server.config.IConfig;
-import com.bigibgcloud.server.config.MemoryConfig;
-import com.bigibgcloud.spi.impl.security.DBAuthenticator;
+import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.server.config.IConfig;
+import com.bigbigcloud.server.config.MemoryConfig;
+import com.bigbigcloud.spi.impl.security.DBAuthenticator;
 import com.bigibgcloud.spi.impl.security.DBAuthenticatorTest;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;

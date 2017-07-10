@@ -16,9 +16,11 @@
 
 package com.bigibgcloud.spi.impl.security;
 
+import com.bigbigcloud.spi.impl.security.Authorization;
+import com.bigbigcloud.spi.impl.security.AuthorizationsCollector;
 import org.junit.Before;
 import org.junit.Test;
-import com.bigibgcloud.spi.impl.subscriptions.Topic;
+import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import java.text.ParseException;
 import static org.junit.Assert.*;
 
