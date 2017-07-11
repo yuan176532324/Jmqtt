@@ -250,9 +250,6 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.4.1</version>
                 <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <classifier>boot</classifier>
-                    <finalName>${project.artifactId}-${project.version}-boot</finalName>
                     <!-- get all project dependencies -->
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
