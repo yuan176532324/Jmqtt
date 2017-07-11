@@ -61,9 +61,8 @@ public final class BrokerConstants {
     public static final String KAFKA_TOPIC_P2P = "p2pOut7";
     public static final String THREAD_COUNTS = "threadCounts";
     public static final String SERVER_THREADS = "serverThreads";
-    public static final String KAFKA_CONSUMER_FOR_P2P = "kafkaConsumer4P2P.properties";
-    public static final String KAFKA_PRODUCER_FOR_P2P = "kafkaProducer4P2P.properties";
-    public static final String KAFKA_PRODUCER_FOR_CONN = "kafkaProducer4Con.properties";
+    public static final String KAFKA_CONFIG_FOR_P2P = "kafkaConfig4P2P.properties";
+    public static final String KAFKA_CONFIG_FOR_CONN = "kafkaConfig4Con.properties";
     public static final String REDIS_CONFIG = "RedisConf.json";
     public static final String RETAINED_STORE = "retained";
     public static final String INBOUND_INFLIGHT = "inboundInflight_";

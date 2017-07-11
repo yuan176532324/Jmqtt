@@ -32,7 +32,9 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ConcurrentMap;
+
 import static com.bigbigcloud.BrokerConstants.*;
 
 public class KafkaInterceptHandler extends AbstractInterceptHandler {
@@ -40,8 +42,8 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaInterceptHandler.class);
     private static final Producer<String, KafkaMsg> producer4p2p;
     private static final Producer<String, DeviceConnMsg> producer4conn;
-    private static final KafkaConfig kafkaConfig4p2p = new KafkaConfig(CONFIG_LOCATION + KAFKA_PRODUCER_FOR_P2P);
-    private static final KafkaConfig kafkaConfig4conn = new KafkaConfig(CONFIG_LOCATION + KAFKA_PRODUCER_FOR_CONN);
+    private static final KafkaConfig kafkaConfig4p2p = new KafkaConfig(CONFIG_LOCATION + KAFKA_CONFIG_FOR_P2P);
+    private static final KafkaConfig kafkaConfig4conn = new KafkaConfig(CONFIG_LOCATION + KAFKA_CONFIG_FOR_CONN);
     private ConcurrentMap<Topic, StoredMessage> m_retainedStore = RedissonUtil.getRedisson().getMap(RETAINED_STORE);
 
     static {
