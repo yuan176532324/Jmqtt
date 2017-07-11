@@ -10,7 +10,7 @@
 
     <artifactId>mqtt-broker</artifactId>
     <groupId>com.bigbigcloud</groupId>
-    <version>0.1.0.0</version>
+    <version>0.1.0.1</version>
     <packaging>jar</packaging>
     <name>mqtt - broker</name>
 

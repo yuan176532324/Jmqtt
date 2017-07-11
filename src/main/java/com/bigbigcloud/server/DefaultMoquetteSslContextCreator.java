@@ -21,6 +21,7 @@ import com.bigbigcloud.server.config.IConfig;
 import com.bigbigcloud.spi.security.ISslContextCreator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -47,7 +48,7 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
     @Override
     public SSLContext initSSLContext() {
         LOG.info("Checking SSL configuration properties...");
-        final String jksPath = props.getProperty(BrokerConstants.JKS_PATH_PROPERTY_NAME);
+        final String jksPath = BrokerConstants.CONFIG_LOCATION + props.getProperty(BrokerConstants.JKS_PATH_PROPERTY_NAME);
         LOG.info("Initializing SSL context. KeystorePath = {}.", jksPath);
         if (jksPath == null || jksPath.isEmpty()) {
             // key_store_password or key_manager_password are empty
@@ -88,7 +89,7 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
             if (needsClientAuth) {
                 LOG.warn(
                         "Client authentication is enabled. "
-                        + "The keystore will be used as a truststore. KeystorePath = {}.",
+                                + "The keystore will be used as a truststore. KeystorePath = {}.",
                         jksPath);
                 // use keystore as truststore, as server needs to trust certificates signed by the
                 // server certificates
