@@ -15,6 +15,7 @@
     <name>mqtt - broker</name>
 
     <properties>
+        <maven.test.skip>true</maven.test.skip>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <common-model.version>0.9.8.0-SNAPSHOT</common-model.version>
         <netty.version>4.1.6.Final</netty.version>
@@ -255,6 +256,8 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.4.1</version>
                 <configuration>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <finalName>${project.artifactId}-${project.version}-boot</finalName>
                     <!-- get all project dependencies -->
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
