@@ -50,6 +50,7 @@ public class ProtocolProcessorBootstrapper {
     private static final Logger LOG = LoggerFactory.getLogger(ProtocolProcessorBootstrapper.class);
     public static final String MAPDB_STORE_CLASS = "com.bigbigcloud.persistence.MemoryStorageService";
     public static final String REDIS_STORE_CLASS = "com.bigbigcloud.persistence.RedisStorageService";
+    public static final String AUTHENTICATOR_CLASS = "com.bigbigcloud.spi.impl.security.BBCAuthenticator";
 
     private ISessionsStore m_sessionsStore;
     private ISubscriptionsStore subscriptionsStore;
@@ -110,25 +111,11 @@ public class ProtocolProcessorBootstrapper {
             }
         }
         BrokerInterceptor interceptor = new BrokerInterceptor(props, observers);
-
         LOG.info("Configuring MQTT authenticator...");
-        String authenticatorClassName = props.getProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME);
-
-        if (authenticator == null && !authenticatorClassName.isEmpty()) {
+        if (authenticator == null) {
             authenticator = new BBCAuthenticator();
         }
-
         IResourceLoader resourceLoader = props.getResourceLoader();
-        if (authenticator == null) {
-            String passwdPath = props.getProperty(BrokerConstants.PASSWORD_FILE_PROPERTY_NAME, "");
-            if (passwdPath.isEmpty()) {
-                authenticator = new AcceptAllAuthenticator();
-            } else {
-                authenticator = new ResourceAuthenticator(resourceLoader, passwdPath);
-            }
-            LOG.info("An {} authenticator instance will be used", authenticator.getClass().getName());
-        }
-
         LOG.info("Configuring MQTT authorizator...");
         String authorizatorClassName = props.getProperty(BrokerConstants.AUTHORIZATOR_CLASS_NAME, "");
         if (authorizator == null && !authorizatorClassName.isEmpty()) {
