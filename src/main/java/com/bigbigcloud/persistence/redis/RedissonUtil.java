@@ -1,5 +1,6 @@
 package com.bigbigcloud.persistence.redis;
 
+import com.bigbigcloud.BrokerConstants;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
@@ -52,7 +53,7 @@ public final class RedissonUtil {
     public static RedissonClient getRedisson() {
         Config config = new Config();
         try {
-            config = Config.fromJSON(new File("src/main/resources/RedisConf.json"));
+            config = Config.fromJSON(new File(BrokerConstants.CONFIG_LOCATION + BrokerConstants.REDIS_CONFIG));
         } catch (IOException e) {
             e.printStackTrace();
         }

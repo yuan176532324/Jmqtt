@@ -64,9 +64,10 @@ public final class BrokerConstants {
     public static final String KAFKA_CONSUMER_FOR_P2P = "kafkaConsumer4P2P.properties";
     public static final String KAFKA_PRODUCER_FOR_P2P = "kafkaProducer4P2P.properties";
     public static final String KAFKA_PRODUCER_FOR_CONN = "kafkaProducer4Con.properties";
-    public static final String KAFKA_PRODUCER_FOR_UI = "kafkaProducer4UI.properties";
+    public static final String REDIS_CONFIG = "RedisConf.json";
     public static final String RETAINED_STORE = "retained";
     public static final String INBOUND_INFLIGHT = "inboundInflight_";
+    public static final String CONFIG_LOCATION = System.getProperty("config.location");
 
     private BrokerConstants() {
     }

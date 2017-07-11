@@ -103,7 +103,7 @@ public class Server {
 
     private static File defaultConfigFile() {
         String configPath = System.getProperty("moquette.path", null);
-        return new File(configPath, IConfig.DEFAULT_CONFIG);
+        return new File(configPath, BrokerConstants.CONFIG_LOCATION + IConfig.DEFAULT_CONFIG);
     }
 
     /**

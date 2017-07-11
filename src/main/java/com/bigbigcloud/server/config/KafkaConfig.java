@@ -16,6 +16,8 @@
 
 package com.bigbigcloud.server.config;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -30,7 +32,12 @@ public class KafkaConfig {
     }
 
     public Properties load() {
-        InputStream in = ClassLoader.getSystemResourceAsStream(fileName);
+        InputStream in = null;
+        try {
+            in = new FileInputStream(fileName);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
         try {
             properties.load(in);
         } catch (IOException e) {

@@ -36,7 +36,7 @@ public class MultiThreadHLConsumer {
     private final Server server;
 
     public MultiThreadHLConsumer(String topic, Server server) {
-        KafkaConfig kafkaConfig = new KafkaConfig(BrokerConstants.KAFKA_CONSUMER_FOR_P2P);
+        KafkaConfig kafkaConfig = new KafkaConfig(BrokerConstants.CONFIG_LOCATION + BrokerConstants.KAFKA_CONSUMER_FOR_P2P);
         consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(kafkaConfig.load()));
         this.topic = topic;
         this.server = server;
