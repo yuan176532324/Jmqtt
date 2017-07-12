@@ -58,7 +58,7 @@ public final class BrokerConstants {
     public static final String NETTY_CHANNEL_TIMEOUT_SECONDS_PROPERTY_NAME = "netty.channel_timeout.seconds";
     public static final String STORAGE_CLASS_NAME = "storage_class";
     public static final String KAFKA_TOPIC = "topic";
-    public static final String KAFKA_TOPIC_P2P = "p2pOut7";
+    public static final String KAFKA_TOPIC_P2P = "p2pOut";
     public static final String THREAD_COUNTS = "threadCounts";
     public static final String SERVER_THREADS = "serverThreads";
     public static final String KAFKA_CONFIG_FOR_P2P = "kafkaConfig4P2P.properties";
@@ -77,6 +77,7 @@ public final class BrokerConstants {
     public static final String REDIS_PASSWORD_STORE = "passwordStore";
     public static final long USER_NOT_FOUND = 41000;
     public static final long PASSWORD_INVALID = 40012;
+    public static final int HEALTH_CHECK_PORT = 3881;
 
 
     private BrokerConstants() {
