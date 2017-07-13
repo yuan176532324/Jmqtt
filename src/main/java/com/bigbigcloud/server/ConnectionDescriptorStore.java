@@ -60,10 +60,10 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
             ConnectionDescriptor descriptor = connectionDescriptors.get(clientID);
             if (descriptor == null) {
                 if (messageID != null) {
-                    LOG.error("Client has just disconnected. {} message could not be sent. CId=<{}>, messageId={}",
+                    LOG.warn("Client has just disconnected. {} message could not be sent. CId=<{}>, messageId={}",
                             messageType, clientID, messageID);
                 } else {
-                    LOG.error("Client has just disconnected. {} could not be sent. CId=<{}>", messageType, clientID);
+                    LOG.warn("Client has just disconnected. {} could not be sent. CId=<{}>", messageType, clientID);
                 }
                 /*
                  * If the client has just disconnected, its connection descriptor will be null. We
