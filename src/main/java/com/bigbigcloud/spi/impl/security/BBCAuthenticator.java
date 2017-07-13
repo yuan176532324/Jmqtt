@@ -26,10 +26,12 @@ import org.apache.http.message.BasicNameValuePair;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
+
 import static com.bigbigcloud.BrokerConstants.*;
 import static com.bigbigcloud.BrokerConstants.APP;
 import static com.bigbigcloud.configuration.Constants.*;
@@ -81,7 +83,7 @@ public class BBCAuthenticator implements IAuthenticator {
 
                     //Http Get请求dh
                     String response = sendGet(uri);
-
+                    LOG.info("dh url :{},response from dh:{}", uri, response);
                     return dhResponseParser(response, clientId, deviceGuid, pwd);
                 }
             } else if (clientId.contains(APP)) {
@@ -95,7 +97,6 @@ public class BBCAuthenticator implements IAuthenticator {
 
     private boolean dhResponseParser(String response, String clientId, String deviceGuid, String password) {
         JsonObject jsonObject = new JsonParser().parse(response).getAsJsonObject();
-        LOG.info("response from dh:" + response);
         if (jsonObject.get(STATUS).getAsString().equals(SUCC)) {
             LOG.info("login success, client is:" + clientId);
             //记录已登录的clientId和登录时间
