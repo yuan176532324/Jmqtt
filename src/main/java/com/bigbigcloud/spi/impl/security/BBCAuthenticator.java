@@ -23,6 +23,7 @@ import com.google.gson.JsonParser;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
+import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +44,10 @@ public class BBCAuthenticator implements IAuthenticator {
     private static final Logger LOG = LoggerFactory.getLogger(BBCAuthenticator.class);
     private String requsetPath = "/dh/v2/rest/device/{deviceGuid}/auth/mqtt";
     private RedissonClient redissonClient = RedissonUtil.getRedisson();
+    private RBucket<String> rBucket;
 
-    private String getPassWord(String clientId) {
-        return redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).get().toString();
+    private RBucket<String> getBucket(String clientId) {
+        return redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId);
     }
 
     public boolean checkValid(String clientId, String username, byte[] password) {
@@ -57,9 +59,10 @@ public class BBCAuthenticator implements IAuthenticator {
         LOG.info("check valid for clientId:" + clientId);
         if (strs.length > 3) {
             if (clientId.contains(DEVICE)) {
-                if (redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).isExists()) {
+                rBucket = getBucket(clientId);
+                if (rBucket.isExists()) {
                     LOG.info("client had login before:" + clientId);
-                    if (pwd.equals(getPassWord(clientId))) {
+                    if (pwd.equals(rBucket.get())) {
                         return true;
                     } else {
                         LOG.error("device check valid, pwd is:{}", pwd);
@@ -99,8 +102,8 @@ public class BBCAuthenticator implements IAuthenticator {
         if (jsonObject.get(STATUS).getAsString().equals(SUCC)) {
             LOG.info("login success, client is:" + clientId);
             //记录已登录的clientId和登录时间
-            redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).set(password);
-            redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).expire(7, TimeUnit.DAYS);
+            rBucket.set(password);
+            rBucket.expire(7, TimeUnit.DAYS);
             return true;
         } else if (jsonObject.get(STATUS).getAsString().equals(ERR)) {
             //日志根据dh返回值确定错误类型
