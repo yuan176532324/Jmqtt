@@ -26,10 +26,12 @@ import org.apache.http.message.BasicNameValuePair;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
+
 import static com.bigbigcloud.BrokerConstants.*;
 import static com.bigbigcloud.BrokerConstants.APP;
 import static com.bigbigcloud.configuration.Constants.*;
@@ -81,7 +83,7 @@ public class BBCAuthenticator implements IAuthenticator {
 
                     //Http Get请求dh
                     String response = sendGet(uri);
-
+                    LOG.info("response from devicehive:" + response);
                     return dhResponseParser(response, clientId, deviceGuid, pwd);
                 }
             } else if (clientId.contains(APP)) {
