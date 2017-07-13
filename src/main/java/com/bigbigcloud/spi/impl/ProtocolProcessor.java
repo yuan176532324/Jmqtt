@@ -50,6 +50,7 @@ import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
 import static io.netty.handler.codec.mqtt.MqttQoS.*;
 import static com.bigbigcloud.server.ConnectionDescriptor.ConnectionState.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Class responsible to handle the logic of MQTT protocol it's the director of the protocol
@@ -252,10 +253,10 @@ public class ProtocolProcessor {
                     payload.userName());
         }
 
-//        if (!login(channel, msg, clientId)) {
-//            channel.close();
-//            return;
-//        }
+        if (!login(channel, msg, clientId)) {
+            channel.close();
+            return;
+        }
         //设置黑名单
         if (m_sessionsStore.isInBlackList(clientId)) {
             channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
@@ -330,7 +331,7 @@ public class ProtocolProcessor {
             }
             if (!m_authenticator.checkValid(clientId, msg.payload().userName(), pwd)) {
                 LOG.error("Authenticator has rejected the MQTT credentials CId={}, username={}, password={}",
-                        clientId, msg.payload().userName(), pwd);
+                        clientId, msg.payload().userName(), new String(pwd != null ? pwd : new byte[0], UTF_8));
                 failedCredentials(channel);
                 return false;
             }

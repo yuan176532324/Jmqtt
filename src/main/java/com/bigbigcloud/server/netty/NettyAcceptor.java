@@ -43,6 +43,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.IOException;
@@ -59,7 +60,7 @@ public class NettyAcceptor implements ServerAcceptor {
 
         @Override
         protected void decode(ChannelHandlerContext chc, BinaryWebSocketFrame frame, List<Object> out)
-            throws Exception {
+                throws Exception {
             // convert the frame to a ByteBuf
             ByteBuf bb = frame.content();
             // System.out.println("WebSocketFrameToByteBufDecoder decode - " +
@@ -102,23 +103,23 @@ public class NettyAcceptor implements ServerAcceptor {
 
     @Override
     public void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator)
-        throws IOException {
+            throws IOException {
         LOG.info("Initializing Netty acceptor...");
 
         nettySoBacklog = Integer.parseInt(props.getProperty(BrokerConstants.NETTY_SO_BACKLOG_PROPERTY_NAME, "128"));
         nettySoReuseaddr = Boolean
-            .parseBoolean(props.getProperty(BrokerConstants.NETTY_SO_REUSEADDR_PROPERTY_NAME, "true"));
+                .parseBoolean(props.getProperty(BrokerConstants.NETTY_SO_REUSEADDR_PROPERTY_NAME, "true"));
         nettyTcpNodelay = Boolean
-            .parseBoolean(props.getProperty(BrokerConstants.NETTY_TCP_NODELAY_PROPERTY_NAME, "true"));
+                .parseBoolean(props.getProperty(BrokerConstants.NETTY_TCP_NODELAY_PROPERTY_NAME, "true"));
         nettySoKeepalive = Boolean
-            .parseBoolean(props.getProperty(BrokerConstants.NETTY_SO_KEEPALIVE_PROPERTY_NAME, "true"));
+                .parseBoolean(props.getProperty(BrokerConstants.NETTY_SO_KEEPALIVE_PROPERTY_NAME, "true"));
         nettyChannelTimeoutSeconds = Integer
                 .parseInt(props.getProperty(BrokerConstants.NETTY_CHANNEL_TIMEOUT_SECONDS_PROPERTY_NAME, "90"));
 
         m_bossGroup = new NioEventLoopGroup();
         m_workerGroup = new NioEventLoopGroup();
         final NettyMQTTHandler handler = new NettyMQTTHandler(processor);
-
+        initializeHealthCheck(props);
         initializePlainTCPTransport(handler, props);
         initializeWebSocketTransport(handler, props);
         String sslTcpPortProp = props.getProperty(BrokerConstants.SSL_PORT_PROPERTY_NAME);
@@ -138,21 +139,21 @@ public class NettyAcceptor implements ServerAcceptor {
         LOG.info("Initializing server. Protocol={}", protocol);
         ServerBootstrap b = new ServerBootstrap();
         b.group(m_bossGroup, m_workerGroup).channel(NioServerSocketChannel.class)
-            .childHandler(new ChannelInitializer<SocketChannel>() {
+                .childHandler(new ChannelInitializer<SocketChannel>() {
 
-                @Override
-                public void initChannel(SocketChannel ch) throws Exception {
-                    ChannelPipeline pipeline = ch.pipeline();
-                    try {
-                        pipeliner.init(pipeline);
-                    } catch (Throwable th) {
-                        LOG.error("Severe error during pipeline creation", th);
-                        throw th;
+                    @Override
+                    public void initChannel(SocketChannel ch) throws Exception {
+                        ChannelPipeline pipeline = ch.pipeline();
+                        try {
+                            pipeliner.init(pipeline);
+                        } catch (Throwable th) {
+                            LOG.error("Severe error during pipeline creation", th);
+                            throw th;
+                        }
                     }
-                }
-            }).option(ChannelOption.SO_BACKLOG, nettySoBacklog).option(ChannelOption.SO_REUSEADDR, nettySoReuseaddr)
-            .option(ChannelOption.TCP_NODELAY, nettyTcpNodelay)
-            .childOption(ChannelOption.SO_KEEPALIVE, nettySoKeepalive);
+                }).option(ChannelOption.SO_BACKLOG, nettySoBacklog).option(ChannelOption.SO_REUSEADDR, nettySoReuseaddr)
+                .option(ChannelOption.TCP_NODELAY, nettyTcpNodelay)
+                .childOption(ChannelOption.SO_KEEPALIVE, nettySoKeepalive);
         try {
             LOG.info("Binding server. host={}, port={}", host, port);
             // Bind and start to accept incoming connections.
@@ -171,7 +172,7 @@ public class NettyAcceptor implements ServerAcceptor {
         String tcpPortProp = props.getProperty(PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
         if (DISABLED_PORT_BIND.equals(tcpPortProp)) {
             LOG.info("Property {} has been set to {}. TCP MQTT will be disabled", BrokerConstants.PORT_PROPERTY_NAME,
-                DISABLED_PORT_BIND);
+                    DISABLED_PORT_BIND);
             return;
         }
         int port = Integer.parseInt(tcpPortProp);
@@ -192,13 +193,24 @@ public class NettyAcceptor implements ServerAcceptor {
         });
     }
 
+    private void initializeHealthCheck(IConfig props) throws IOException {
+        String host = props.getProperty(BrokerConstants.HOST_PROPERTY_NAME);
+        LOG.info("Configuring HealthCheck");
+        initFactory(host, HEALTH_CHECK_PORT, "TCP", new PipelineInitializer() {
+            @Override
+            void init(ChannelPipeline pipeline) {
+                pipeline.addFirst("healthCheckHandler", new HealthCheckHandler());
+            }
+        });
+    }
+
     private void initializeWebSocketTransport(final NettyMQTTHandler handler, IConfig props) throws IOException {
         LOG.info("Configuring Websocket MQTT transport");
         String webSocketPortProp = props.getProperty(WEB_SOCKET_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
         if (DISABLED_PORT_BIND.equals(webSocketPortProp)) {
             // Do nothing no WebSocket configured
             LOG.info("Property {} has been setted to {}. Websocket MQTT will be disabled",
-                BrokerConstants.WEB_SOCKET_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
+                    BrokerConstants.WEB_SOCKET_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
             return;
         }
         int port = Integer.parseInt(webSocketPortProp);
@@ -213,7 +225,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addLast(new HttpServerCodec());
                 pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
                 pipeline.addLast("webSocketHandler",
-                    new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST));
+                        new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST));
                 pipeline.addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
                 pipeline.addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
                 pipeline.addFirst("idleStateHandler", new IdleStateHandler(nettyChannelTimeoutSeconds, 0, 0));
@@ -229,13 +241,13 @@ public class NettyAcceptor implements ServerAcceptor {
     }
 
     private void initializeSSLTCPTransport(final NettyMQTTHandler handler, IConfig props, final SSLContext sslContext)
-        throws IOException {
+            throws IOException {
         LOG.info("Configuring SSL MQTT transport");
         String sslPortProp = props.getProperty(SSL_PORT_PROPERTY_NAME);
         if (DISABLED_PORT_BIND.equals(sslPortProp)) {
             // Do nothing no SSL configured
             LOG.info("Property {} has been set to {}. SSL MQTT will be disabled",
-                BrokerConstants.SSL_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
+                    BrokerConstants.SSL_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
             return;
         }
 
@@ -265,13 +277,13 @@ public class NettyAcceptor implements ServerAcceptor {
     }
 
     private void initializeWSSTransport(final NettyMQTTHandler handler, IConfig props, final SSLContext sslContext)
-        throws IOException {
+            throws IOException {
         LOG.info("Configuring secure websocket MQTT transport");
         String sslPortProp = props.getProperty(WSS_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
         if (DISABLED_PORT_BIND.equals(sslPortProp)) {
             // Do nothing no SSL configured
             LOG.info("Property {} has been set to {}. Secure websocket MQTT will be disabled",
-                BrokerConstants.WSS_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
+                    BrokerConstants.WSS_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
             return;
         }
         int sslPort = Integer.parseInt(sslPortProp);
@@ -288,7 +300,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addLast("httpDecoder", new HttpRequestDecoder());
                 pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
                 pipeline.addLast("webSocketHandler",
-                    new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST));
+                        new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST));
                 pipeline.addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
                 pipeline.addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
                 pipeline.addFirst("idleStateHandler", new IdleStateHandler(nettyChannelTimeoutSeconds, 0, 0));
@@ -337,12 +349,12 @@ public class NettyAcceptor implements ServerAcceptor {
         LOG.info("Collecting message metrics...");
         MessageMetrics metrics = m_metricsCollector.computeMetrics();
         LOG.info("Metrics have been collected. Read messages={}, written messages={}", metrics.messagesRead(),
-            metrics.messagesWrote());
+                metrics.messagesWrote());
 
         LOG.info("Collecting bytes metrics...");
         BytesMetrics bytesMetrics = m_bytesMetricsCollector.computeMetrics();
         LOG.info("Bytes metrics have been collected. Read bytes={}, written bytes={}", bytesMetrics.readBytes(),
-            bytesMetrics.wroteBytes());
+                bytesMetrics.wroteBytes());
     }
 
     private ChannelHandler createSslHandler(SSLContext sslContext, boolean needsClientAuth) {
