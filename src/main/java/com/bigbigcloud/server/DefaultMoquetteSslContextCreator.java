@@ -48,7 +48,7 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
     @Override
     public SSLContext initSSLContext() {
         LOG.info("Checking SSL configuration properties...");
-        final String jksPath = BrokerConstants.CONFIG_LOCATION + props.getProperty(BrokerConstants.JKS_PATH_PROPERTY_NAME);
+        final String jksPath = props.getProperty(BrokerConstants.JKS_PATH_PROPERTY_NAME);
         LOG.info("Initializing SSL context. KeystorePath = {}.", jksPath);
         if (jksPath == null || jksPath.isEmpty()) {
             // key_store_password or key_manager_password are empty
@@ -120,6 +120,7 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
             return getClass().getClassLoader().getResourceAsStream(jksPath);
         }
         LOG.warn("No keystore has been found in the bundled resources. Scanning filesystem...");
+        jksPath = BrokerConstants.CONFIG_LOCATION + props.getProperty(BrokerConstants.JKS_PATH_PROPERTY_NAME);
         File jksFile = new File(jksPath);
         if (jksFile.exists()) {
             LOG.info("Loading external keystore. Url = {}.", jksFile.getAbsolutePath());
