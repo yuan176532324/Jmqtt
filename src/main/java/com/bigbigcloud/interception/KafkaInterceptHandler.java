@@ -114,7 +114,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
                 deviceConnMsg.setDeviceGuid(strs[2]);
                 deviceConnMsg.setFlag(true);
                 //$SYS/presence/connected/{deviceGuid}
-                ProducerRecord<String, DeviceConnMsg> record = new ProducerRecord<String, DeviceConnMsg>("SYS", deviceConnMsg);
+                ProducerRecord<String, DeviceConnMsg> record = new ProducerRecord<String, DeviceConnMsg>(BrokerConstants.KAFKA_TOPIC_SYS, deviceConnMsg);
                 producer4conn.send(record);
             }
         }
@@ -131,7 +131,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
                 deviceConnMsg.setDeviceGuid(strs[2]);
                 deviceConnMsg.setFlag(false);
                 //$SYS/presence/connected/{deviceGuid}
-                ProducerRecord<String, DeviceConnMsg> record = new ProducerRecord<String, DeviceConnMsg>("SYS", deviceConnMsg);
+                ProducerRecord<String, DeviceConnMsg> record = new ProducerRecord<String, DeviceConnMsg>(BrokerConstants.KAFKA_TOPIC_SYS, deviceConnMsg);
                 producer4conn.send(record);
             }
         }

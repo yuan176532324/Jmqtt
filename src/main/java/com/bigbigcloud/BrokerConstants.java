@@ -59,6 +59,7 @@ public final class BrokerConstants {
     public static final String STORAGE_CLASS_NAME = "storage_class";
     public static final String KAFKA_TOPIC = "topic";
     public static final String KAFKA_TOPIC_P2P = "mqtt_p2pout";
+    public static final String KAFKA_TOPIC_SYS = "mqtt_sys";
     public static final String THREAD_COUNTS = "threadCounts";
     public static final String SERVER_THREADS = "serverThreads";
     public static final String KAFKA_CONFIG_FOR_P2P = "kafkaConfig4P2P.properties";
