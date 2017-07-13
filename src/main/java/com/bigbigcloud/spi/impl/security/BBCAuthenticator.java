@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import static com.bigbigcloud.BrokerConstants.*;
 import static com.bigbigcloud.BrokerConstants.APP;
@@ -42,11 +42,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class BBCAuthenticator implements IAuthenticator {
     private static final Logger LOG = LoggerFactory.getLogger(BBCAuthenticator.class);
     private String requsetPath = "/dh/v2/rest/device/{deviceGuid}/auth/mqtt";
-    private ConcurrentMap<String, String> passwordStore;
+    private RedissonClient redissonClient = RedissonUtil.getRedisson();
 
-    public BBCAuthenticator() {
-        RedissonClient redissonClient = RedissonUtil.getRedisson();
-        passwordStore = redissonClient.getMap(REDIS_PASSWORD_STORE);
+    private String getPassWord(String clientId) {
+        return redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).get().toString();
     }
 
     public boolean checkValid(String clientId, String username, byte[] password) {
@@ -58,9 +57,9 @@ public class BBCAuthenticator implements IAuthenticator {
         LOG.info("check valid for clientId:" + clientId);
         if (strs.length > 3) {
             if (clientId.contains(DEVICE)) {
-                if (passwordStore.containsKey(clientId)) {
+                if (redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).isExists()) {
                     LOG.info("client had login before:" + clientId);
-                    if (pwd.equals(passwordStore.get(clientId))) {
+                    if (pwd.equals(getPassWord(clientId))) {
                         return true;
                     } else {
                         LOG.error("device check valid, pwd is:{}", pwd);
@@ -100,7 +99,8 @@ public class BBCAuthenticator implements IAuthenticator {
         if (jsonObject.get(STATUS).getAsString().equals(SUCC)) {
             LOG.info("login success, client is:" + clientId);
             //记录已登录的clientId和登录时间
-            passwordStore.put(clientId, password);
+            redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).set(password);
+            redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId).expire(7, TimeUnit.DAYS);
             return true;
         } else if (jsonObject.get(STATUS).getAsString().equals(ERR)) {
             //日志根据dh返回值确定错误类型

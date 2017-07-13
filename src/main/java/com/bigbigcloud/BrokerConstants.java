@@ -75,7 +75,7 @@ public final class BrokerConstants {
     public static final String AUTHSIGNATURE = "Authorization";
     public static final String BEARER = "BearerhJ9+tPuq7p81wv8yHLKDx94i+Ms2VRS0Fmnmn6w9H68=";
     public static final String DEVICEHIVE_URL = System.getProperty("devicehive.url");
-    public static final String REDIS_PASSWORD_STORE = "passwordStore";
+    public static final String REDIS_PASSWORD_STORE = "pwdStore:";
     public static final long USER_NOT_FOUND = 41000;
     public static final long PASSWORD_INVALID = 40012;
     public static final int HEALTH_CHECK_PORT = 3881;
