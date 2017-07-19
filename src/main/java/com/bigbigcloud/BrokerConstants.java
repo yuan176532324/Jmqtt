@@ -65,27 +65,34 @@ public final class BrokerConstants {
     public static final String KAFKA_CONFIG_FOR_P2P = "kafkaConfig4P2P.properties";
     public static final String KAFKA_CONFIG_FOR_CONN = "kafkaConfig4Con.properties";
     public static final String REDIS_CONFIG = "RedisConf.json";
-    public static final String RETAINED_STORE = "retained";
-    public static final String INBOUND_INFLIGHT = "inboundInflight_";
+    public static final String RETAINED_STORE = "retained:";
+    public static final String INBOUND_INFLIGHT = "inboundInflight:";
     public static final String CONFIG_LOCATION = System.getProperty("config.location");
-    public static final String DEVICE = "device:";
-    public static final String APP = "app:";
+    public static final String DEVICE = "device";
+    public static final String APP = "app";
     public static final String SIGN = "sign";
+    public static final String APPID = "appId";
     public static final String PRODUCTKEY = "productKey";
     public static final String AUTHSIGNATURE = "Authorization";
-    public static final String BEARER = "BearerhJ9+tPuq7p81wv8yHLKDx94i+Ms2VRS0Fmnmn6w9H68=";
+    public static final String AW_AUTHSIGNATURE = "AW-Authorization";
+    private static final String BEARER = "Bearer";
+    public static final String DH_ACCESSKEY = BEARER + "hJ9+tPuq7p81wv8yHLKDx94i+Ms2VRS0Fmnmn6w9H68=";
+    public static final String APPHUB_ACCESSKEY = BEARER + "lovIosOPN3NNNflvKLnHQI594Alq/pFfjq0u50icX8E=";
     public static final String DEVICEHIVE_URL = System.getProperty("devicehive.url");
-    public static final String REDIS_PASSWORD_STORE = "pwdStore:";
+    public static final String APPHUB_URL = System.getProperty("apphub.url");
+    public static final String APPHUB_PORT = System.getProperty("apphub.port");
+    public static final String DEVICEHIVE_PORT = System.getProperty("devicehive.port");
     public static final long USER_NOT_FOUND = 41000;
     public static final long PASSWORD_INVALID = 40012;
     public static final int HEALTH_CHECK_PORT = 3881;
-    public static final String KEY_SUBSCRIPTIONS = "subscriptions:";
-    public static final String OUTBOUND_FLIGHT = "outboundFlight";
-    public static final String INFLIGHT_PACKETIDS = "inflightPacketIDs";
-    public static final String BLACKLIST = "blackList";
+    public static final String KEY_SUBSCRIPTIONS = "subscription:";
+    public static final String OUTBOUND_FLIGHT = "outboundFlight:";
+    public static final String INFLIGHT_PACKETIDS = "inflightPacketID:";
+    public static final String BLACKLIST = "blackList:";
     public static final String SESSION = "session:";
-    public static final String SECOND_PHASE = "secondPhase";
-
+    public static final String SECOND_PHASE = "secondPhase:";
+    public static final String DH_PATH = "devicehivePath";
+    public static final String APPHUB_PATH = "apphubPath";
     private BrokerConstants() {
     }
 }

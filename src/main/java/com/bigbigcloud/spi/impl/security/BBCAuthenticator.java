@@ -16,23 +16,18 @@
 
 package com.bigbigcloud.spi.impl.security;
 
-import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.server.config.IConfig;
 import com.bigbigcloud.spi.security.IAuthenticator;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import static com.bigbigcloud.BrokerConstants.*;
 import static com.bigbigcloud.BrokerConstants.APP;
 import static com.bigbigcloud.configuration.Constants.*;
@@ -42,12 +37,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class BBCAuthenticator implements IAuthenticator {
     private static final Logger LOG = LoggerFactory.getLogger(BBCAuthenticator.class);
-    private String requsetPath = "/dh/v2/rest/device/{deviceGuid}/auth/mqtt";
-    private RedissonClient redissonClient = RedissonUtil.getRedisson();
-    private RBucket<String> rBucket;
+    private IConfig iConfig;
 
-    private RBucket<String> getBucket(String clientId) {
-        return redissonClient.getBucket(REDIS_PASSWORD_STORE + clientId);
+    public BBCAuthenticator(IConfig iConfig) {
+        this.iConfig = iConfig;
     }
 
     public boolean checkValid(String clientId, String username, byte[] password) {
@@ -55,62 +48,71 @@ public class BBCAuthenticator implements IAuthenticator {
         String productKey;
         String pwd = new String(password, UTF_8);
         String appId;
-        String[] strs = clientId.split(":");
+        String userId;
+        //未登陆过或缓存失效，处理device和app
+        final String[] strs = clientId.split(":");
         LOG.info("check valid for clientId:" + clientId);
         if (strs.length > 3) {
-            if (clientId.contains(DEVICE)) {
-                rBucket = getBucket(clientId);
-                if (rBucket.isExists()) {
-                    LOG.info("client had login before:" + clientId);
-                    if (pwd.equals(rBucket.get())) {
-                        return true;
-                    } else {
-                        LOG.error("device check valid, pwd is:{}", pwd);
-                        return false;
-                    }
-                } else {
-                    LOG.info("client ask dh to login:" + clientId);
-
-                    //生成请求参数
-                    productKey = strs[1];
-                    deviceGuid = strs[2];
-                    String dhGuid = "{deviceGuid}";
-                    requsetPath = StringUtils.replace(requsetPath, dhGuid, deviceGuid);
-                    List<NameValuePair> nvps = new LinkedList<>();
-                    nvps.add(new BasicNameValuePair(SIGN, pwd));
-                    nvps.add(new BasicNameValuePair(PRODUCTKEY, productKey));
-
-                    //生成URI
-                    URI uri = doGetHttpUrl(DEVICEHIVE_URL, requsetPath, nvps);
-
-                    //Http Get请求dh
-                    String response = sendGet(uri);
-                    LOG.info("dh url :{},response from dh:{}", uri, response);
-                    return dhResponseParser(response, clientId, deviceGuid, pwd);
-                }
-            } else if (clientId.contains(APP)) {
+            String key = strs[0];
+            String requsetPath;
+            if (key.equals(DEVICE)) {
                 LOG.info("client ask dh to login:" + clientId);
-                //TODO:app端暂无验证接口
-                return true;
+                //生成请求参数
+                productKey = strs[1];
+                deviceGuid = strs[2];
+                String dhGuid = "{deviceGuid}";
+                String requsetPathForDH = iConfig.getProperty(DH_PATH);
+                requsetPath = StringUtils.replace(requsetPathForDH, dhGuid, deviceGuid);
+                LOG.info("deviceGuid is :" + deviceGuid + ", requsetPathForDH is:" + requsetPath);
+                List<NameValuePair> nvps = new LinkedList<>();
+                nvps.add(new BasicNameValuePair(SIGN, pwd));
+                nvps.add(new BasicNameValuePair(PRODUCTKEY, productKey));
+                //生成URI
+                URI uri = doGetHttpUrl(DEVICEHIVE_URL, DEVICEHIVE_PORT == null ? null : Integer.valueOf(DEVICEHIVE_PORT), requsetPath, nvps);
+                //Http Get请求dh
+                String response = sendGet(uri, AUTHSIGNATURE, DH_ACCESSKEY);
+                LOG.info("dh url :{},response from dh:{}", uri, response);
+                return responseParser(response, clientId, pwd);
+            } else if (key.equals(APP)) {
+                LOG.info("client ask apphub to login:" + clientId);
+                //生成请求参数
+                appId = strs[1];
+                userId = strs[2];
+                String user = "{userId}";
+                String requsetPathForAppHub = iConfig.getProperty(APPHUB_PATH);
+                requsetPath = StringUtils.replace(requsetPathForAppHub, user, userId);
+                LOG.info("userId is :" + userId + ", requsetPathForAppHub is:" + requsetPath);
+                List<NameValuePair> nvps = new LinkedList<>();
+                nvps.add(new BasicNameValuePair(SIGN, pwd));
+                nvps.add(new BasicNameValuePair(APPID, appId));
+                //生成URI
+                URI uri = doGetHttpUrl(APPHUB_URL, APPHUB_PORT == null ? null : Integer.valueOf(APPHUB_PORT), requsetPath, nvps);
+                //Http Get请求dh
+                String response = sendGet(uri, AW_AUTHSIGNATURE, APPHUB_ACCESSKEY);
+                LOG.info("apphub url :{},response from apphub:{}", uri, response);
+                return responseParser(response, clientId, pwd);
             }
         }
         return false;
     }
 
-    private boolean dhResponseParser(String response, String clientId, String deviceGuid, String password) {
-        JsonObject jsonObject = new JsonParser().parse(response).getAsJsonObject();
+    private boolean responseParser(String response, String clientId, String password) {
+        JsonObject jsonObject;
+        try {
+            jsonObject = new JsonParser().parse(response).getAsJsonObject();
+        } catch (Exception e) {
+            LOG.warn("response error:" + e);
+            return false;
+        }
         if (jsonObject.get(STATUS).getAsString().equals(SUCC)) {
             LOG.info("login success, client is:" + clientId);
-            //记录已登录的clientId和登录时间
-            rBucket.set(password);
-            rBucket.expire(7, TimeUnit.DAYS);
             return true;
         } else if (jsonObject.get(STATUS).getAsString().equals(ERR)) {
             //日志根据dh返回值确定错误类型
             if (jsonObject.get(ERRORCODE).getAsLong() == USER_NOT_FOUND) {
-                LOG.error("device with guid : {} not found", deviceGuid);
+                LOG.warn("user not found, clientId:" + clientId);
             } else if (jsonObject.get(ERRORCODE).getAsLong() == PASSWORD_INVALID) {
-                LOG.error("device check valid, pwd is:", password);
+                LOG.warn("check invalid, pwd is:" + password);
             }
         }
         return false;

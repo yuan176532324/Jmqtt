@@ -30,6 +30,7 @@ import io.netty.handler.codec.mqtt.MqttQoS;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.redisson.api.RMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +59,6 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
 
     @Override
     public void onPublish(InterceptPublishMessage msg) {
-        // TODO ugly, too much array copy
         ByteBuf payload = msg.getPayload();
         byte[] payloadContent = Utils.readBytesAndRewind(payload);
         LOG.info("{} publish on {} message: {}", msg.getClientID(), msg.getTopicName(), new String(payloadContent));
@@ -69,16 +69,15 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
             case "p2p":
                 final Topic topic = new Topic(mqttMessage.getTopic());
                 if (mqttMessage.getQos() == 0 && mqttMessage.isRetained()) {
-                    if (m_retainedStore.containsKey(topic)) {
-                        m_retainedStore.remove(topic);
-                    }
+                    m_retainedStore.remove(topic);
                 } else if (mqttMessage.getQos() == 1 && mqttMessage.isRetained()) {
                     StoredMessage storedMessage = new StoredMessage(mqttMessage.getPayload(), MqttQoS.valueOf(mqttMessage.getQos()), topicName);
                     storedMessage.setRetained(mqttMessage.isRetained());
                     storedMessage.setClientID(mqttMessage.getClientId());
                     m_retainedStore.put(topic, storedMessage);
                 } else if (mqttMessage.getQos() == 2) {
-                    ConcurrentMap<Integer, StoredMessage> messageIdToGuid = RedissonUtil.getRedisson().getMap(INBOUND_INFLIGHT + mqttMessage.getClientId());
+                    RMap<Integer, StoredMessage> messageIdToGuid = RedissonUtil.getRedisson().getMap(INBOUND_INFLIGHT + mqttMessage.getClientId());
+                    LOG.info("messageId is: {}", mqttMessage.getMessageId());
                     StoredMessage storedMessage = messageIdToGuid.get(mqttMessage.getMessageId());
                     if (storedMessage.isRetained()) {
                         if (storedMessage.getPayload().readableBytes() == 0) {
@@ -130,7 +129,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
                 deviceConnMsg.setClientId(msg.getClientID());
                 deviceConnMsg.setDeviceGuid(strs[2]);
                 deviceConnMsg.setFlag(false);
-                //$SYS/presence/connected/{deviceGuid}
+                //$SYS/presence/disconnected/{deviceGuid}
                 ProducerRecord<String, DeviceConnMsg> record = new ProducerRecord<String, DeviceConnMsg>(BrokerConstants.KAFKA_TOPIC_SYS, deviceConnMsg);
                 producer4conn.send(record);
             }

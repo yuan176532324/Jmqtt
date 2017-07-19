@@ -29,15 +29,17 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import static com.bigbigcloud.BrokerConstants.*;
 
 public final class HttpUtils {
     private static final CloseableHttpClient httpclient = HttpClients.createDefault();
 
-    public static URI doGetHttpUrl(String host, String path, List<NameValuePair> nvps) {
+    public static URI doGetHttpUrl(String host, Integer port, String path, List<NameValuePair> nvps) {
+        if (port == null) {
+            port = -1;
+        }
         URI uri = null;
         try {
-            uri = new URIBuilder().setScheme("http").setHost(host)
+            uri = new URIBuilder().setScheme("http").setHost(host).setPort(port)
                     .setPath(path).addParameters(nvps).build();
         } catch (URISyntaxException e) {
             e.printStackTrace();
@@ -45,9 +47,9 @@ public final class HttpUtils {
         return uri;
     }
 
-    public static String sendGet(URI uri) {
+    public static String sendGet(URI uri, String key, String value) {
         HttpGet httpget = new HttpGet(uri);
-        httpget.setHeader(AUTHSIGNATURE, BEARER);
+        httpget.setHeader(key, value);
         CloseableHttpResponse response = null;
         try {
             response = httpclient.execute(httpget);

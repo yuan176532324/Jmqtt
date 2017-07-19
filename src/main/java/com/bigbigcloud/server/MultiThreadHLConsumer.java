@@ -45,30 +45,14 @@ public class MultiThreadHLConsumer {
     public void testConsumer(int threadCount) {
         Map<String, Integer> topicCount = new HashMap<>();
         topicCount.put(topic, threadCount);
-
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerStreams = consumer.createMessageStreams(topicCount);
         List<KafkaStream<byte[], byte[]>> streams = consumerStreams.get(topic);
-
-        long time1 = new Date().getTime();
-
         executor = Executors.newFixedThreadPool(threadCount);
-
         int threadNumber = 0;
         for (final KafkaStream stream : streams) {
             executor.submit(new ConsumerThread(stream, threadNumber, server));
             threadNumber++;
         }
-
-//        try { // without this wait the subsequent shutdown happens immediately before any messages are delivered
-//            Thread.sleep(10000);
-//        } catch (InterruptedException ie) {
 //
-//        }
-//        if (consumer != null) {
-//            consumer.shutdown();
-//        }
-//        if (executor != null) {
-//            executor.shutdown();
-//        }
     }
 }

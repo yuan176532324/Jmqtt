@@ -20,16 +20,14 @@ import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.spi.IMessagesStore;
 import com.bigbigcloud.spi.IMatchingCondition;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
+import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
-
+import static com.bigbigcloud.BrokerConstants.RETAINED_STORE;
 import static java.util.concurrent.TimeUnit.DAYS;
 
 /**
@@ -39,28 +37,28 @@ public class RedisMessagesStore implements IMessagesStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(RedisMessagesStore.class);
 
-    private RedissonClient m_db;
+    private RedissonClient redis;
 
-    private ConcurrentMap<Topic, StoredMessage> m_retainedStore;
+    private RBucket<StoredMessage> storedMessageRBucket;
 
-    public RedisMessagesStore(RedissonClient db) {
-        m_db = db;
+    public RedisMessagesStore(RedissonClient redis) {
+        this.redis = redis;
     }
 
     @Override
     public void initStore() {
-        m_retainedStore = m_db.getMap("retained");
-        m_db.getMap("retained").expire(7, DAYS);
-        LOG.info("Initialized store");
     }
 
     @Override
     public Collection<StoredMessage> searchMatching(IMatchingCondition condition) {
         LOG.debug("Scanning retained messages");
         List<StoredMessage> results = new ArrayList<>();
-        for (Map.Entry<Topic, StoredMessage> entry : m_retainedStore.entrySet()) {
-            StoredMessage storedMsg = entry.getValue();
-            if (condition.match(entry.getKey())) {
+        Collection<String> keyForTopic = redis.getKeys().findKeysByPattern(RETAINED_STORE);
+        for (String key : keyForTopic) {
+            storedMessageRBucket = redis.getBucket(key);
+            String topic = key.replace(RETAINED_STORE, "");
+            StoredMessage storedMsg = storedMessageRBucket.get();
+            if (condition.match(new Topic(topic))) {
                 results.add(storedMsg);
             }
         }
@@ -75,7 +73,8 @@ public class RedisMessagesStore implements IMessagesStore {
     @Override
     public void cleanRetained(Topic topic) {
         LOG.debug("Cleaning retained messages. Topic={}", topic);
-        m_retainedStore.remove(topic);
+        storedMessageRBucket = redis.getBucket(RETAINED_STORE + topic);
+        storedMessageRBucket.delete();
     }
 
     @Override
@@ -84,6 +83,8 @@ public class RedisMessagesStore implements IMessagesStore {
         if (storedMessage.getClientID() == null) {
             throw new IllegalArgumentException("Message to be persisted must have a not null client ID");
         }
-        m_retainedStore.put(topic, storedMessage);
+        storedMessageRBucket = redis.getBucket(RETAINED_STORE + topic);
+        storedMessageRBucket.set(storedMessage);
+        storedMessageRBucket.expire(7, DAYS);
     }
 }
