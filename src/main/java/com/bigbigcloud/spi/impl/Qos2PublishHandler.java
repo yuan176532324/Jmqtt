@@ -28,8 +28,6 @@ import io.netty.channel.Channel;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
@@ -85,9 +83,10 @@ class Qos2PublishHandler extends QosPublishHandler {
         int messageID = Utils.messageId(msg);
         LOG.info("Processing PUBREL message. CId={}, messageId={}", clientID, messageID);
         sendPubComp(clientID, messageID);
+        StoredMessage toStoreMsg = m_sessionsStore.inboundInflight(clientID, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.EXACTLY_ONCE, false, 0);
-        MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader("p2p", messageID);
-        MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, EMPTY_BUFFER);
+        MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(toStoreMsg.getTopic(), messageID);
+        MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, toStoreMsg.getPayload());
         m_interceptor.notifyTopicPublished(publishMessage, clientID, username);
     }
 

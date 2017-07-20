@@ -113,7 +113,7 @@ public class ProtocolProcessorBootstrapper {
         BrokerInterceptor interceptor = new BrokerInterceptor(props, observers);
         LOG.info("Configuring MQTT authenticator...");
         if (authenticator == null) {
-            authenticator = new BBCAuthenticator();
+            authenticator = new BBCAuthenticator(props);
         }
         IResourceLoader resourceLoader = props.getResourceLoader();
         LOG.info("Configuring MQTT authorizator...");

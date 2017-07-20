@@ -27,13 +27,9 @@ import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-
 import static com.bigbigcloud.BrokerConstants.*;
 
 /**
@@ -43,27 +39,24 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(RedisSessionsStore.class);
 
-    // maps clientID->[MessageId -> msg]
-    private RMap<String, ConcurrentMap<Integer, StoredMessage>> outboundFlightMessages;
-    // map clientID <-> set of currently in flight packet identifiers
-    private RMap<String, Set<Integer>> m_inFlightIds;
-    private RMap<String, PersistentSession> m_persistentSessions;
-    // maps clientID->[MessageId -> guid]
-    private RMap<String, ConcurrentMap<Integer, StoredMessage>> m_secondPhaseStore;
-    private RMap<String, String> m_blacklist;
-    private final RedissonClient m_db;
+    private final RedissonClient redis;
+    //订阅关系
+    private RMap<Topic, Subscription> subMap;
+    //persistSession
+    private RMap<String, PersistentSession> persistSession;
+    //待发送的消息
+    private RMap<Integer, StoredMessage> outboundFlightMessages;
+    //第二阶段的消息
+    private RMap<Integer, StoredMessage> secondPhaseMessages;
+    //全部的sessionKeys
+    private Collection<String> keyForSessions;
 
-    public RedisSessionsStore(RedissonClient db) {
-        m_db = db;
+    public RedisSessionsStore(RedissonClient redis) {
+        this.redis = redis;
     }
 
     @Override
     public void initStore() {
-        outboundFlightMessages = m_db.getMap(OUTBOUND_FLIGHT);
-        m_inFlightIds = m_db.getMap(INFLIGHT_PACKETIDS);
-        m_persistentSessions = m_db.getMap("sessions");
-        m_secondPhaseStore = m_db.getMap(SECOND_PHASE);
-        m_blacklist = m_db.getMap(BLACKLIST);
     }
 
     @Override
@@ -76,35 +69,37 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         LOG.info("Adding new subscription. ClientId={}, topics={}", newSubscription.getClientId(),
                 newSubscription.getTopicFilter());
         final String clientID = newSubscription.getClientId();
-        m_db.getMap(KEY_SUBSCRIPTIONS + clientID).put(newSubscription.getTopicFilter(), newSubscription);
-        m_db.getMap(KEY_SUBSCRIPTIONS + clientID).expire(7, TimeUnit.DAYS);
+        subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+        subMap.put(newSubscription.getTopicFilter(), newSubscription);
+        subMap.expire(7, TimeUnit.DAYS);
         if (LOG.isTraceEnabled()) {
             LOG.trace("Subscription has been added. ClientId={}, topics={}, clientSubscriptions={}",
                     newSubscription.getClientId(), newSubscription.getTopicFilter(),
-                    m_db.getMap("KEY_SUBSCRIPTIONS" + clientID));
+                    redis.getMap("KEY_SUBSCRIPTIONS" + clientID));
         }
     }
 
     @Override
     public void removeSubscription(Topic topicFilter, String clientID) {
         LOG.info("Removing subscription. ClientId={}, topics={}", clientID, topicFilter);
-        if (!m_db.getMap(KEY_SUBSCRIPTIONS + clientID).isExists()) {
+        subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+        if (!subMap.isExists()) {
             return;
         }
-        m_db.getMap(KEY_SUBSCRIPTIONS + clientID).remove(topicFilter);
+        subMap.remove(topicFilter);
         if (LOG.isDebugEnabled()) {
             LOG.debug("Subscription has been removed. ClientId={}, topics={}, clientSubscriptions={}", clientID,
-                    topicFilter, m_db.getMap(KEY_SUBSCRIPTIONS + clientID));
+                    topicFilter, subMap);
         }
     }
 
     @Override
     public void wipeSubscriptions(String clientID) {
         LOG.info("Wiping subscriptions. CId={}", clientID);
-        m_db.getMap(KEY_SUBSCRIPTIONS + clientID).delete();
+        subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+        subMap.delete();
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Subscriptions have been removed. ClientId={}, clientSubscriptions={}", clientID,
-                    m_db.getMap(KEY_SUBSCRIPTIONS + clientID));
+            LOG.debug("Subscriptions have been removed. ClientId={}, clientSubscriptions={}", clientID, subMap);
         }
     }
 
@@ -112,9 +107,11 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     public List<ClientTopicCouple> listAllSubscriptions() {
         LOG.debug("Retrieving existing subscriptions");
         final List<ClientTopicCouple> allSubscriptions = new ArrayList<>();
-        for (String clientID : m_persistentSessions.keySet()) {
-            ConcurrentMap<Topic, Subscription> clientSubscriptions = m_db.getMap(KEY_SUBSCRIPTIONS + clientID);
-            for (Topic topicFilter : clientSubscriptions.keySet()) {
+        keyForSessions = redis.getKeys().findKeysByPattern(SESSION + "*");
+        for (String key : keyForSessions) {
+            String clientID = key.replace(SESSION, "");
+            subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+            for (Topic topicFilter : subMap.keySet()) {
                 allSubscriptions.add(new ClientTopicCouple(clientID, topicFilter));
             }
         }
@@ -126,18 +123,20 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     @Override
     public Subscription getSubscription(ClientTopicCouple couple) {
-        ConcurrentMap<Topic, Subscription> clientSubscriptions = m_db.getMap(KEY_SUBSCRIPTIONS + couple.clientID);
-        LOG.debug("Retrieving subscriptions. CId={}, subscriptions={}", couple.clientID, clientSubscriptions);
-        return clientSubscriptions.get(couple.topicFilter);
+        subMap = redis.getMap(KEY_SUBSCRIPTIONS + couple.clientID);
+        LOG.debug("Retrieving subscriptions. CId={}, subscriptions={}", couple.clientID, subMap);
+        return subMap.get(couple.topicFilter);
     }
 
     @Override
     public List<Subscription> getSubscriptions() {
         LOG.debug("Retrieving existing subscriptions...");
         List<Subscription> subscriptions = new ArrayList<>();
-        for (String clientID : m_persistentSessions.keySet()) {
-            ConcurrentMap<Topic, Subscription> clientSubscriptions = m_db.getMap(KEY_SUBSCRIPTIONS + clientID);
-            subscriptions.addAll(clientSubscriptions.values());
+        keyForSessions = redis.getKeys().findKeysByPattern(SESSION + "*");
+        for (String key : keyForSessions) {
+            String clientID = key.replace(SESSION, "");
+            subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+            subscriptions.addAll(subMap.values());
         }
         LOG.debug("Existing subscriptions has been retrieved Result={}", subscriptions);
         return subscriptions;
@@ -145,39 +144,46 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     @Override
     public boolean contains(String clientID) {
-        return m_db.getMap(KEY_SUBSCRIPTIONS + clientID).isExists();
+        subMap = redis.getMap(KEY_SUBSCRIPTIONS + clientID);
+        return subMap.isExists();
     }
 
     @Override
     public ClientSession createNewSession(String clientID, boolean cleanSession) {
-        if (m_persistentSessions.containsKey(clientID)) {
-            LOG.error("Unable to create a new session: the client ID is already in use. ClientId={}, cleanSession={}",
+        persistSession = redis.getMap(SESSION + clientID);
+        if (persistSession.isExists()) {
+            LOG.warn("Unable to create a new session: the client ID is already in use. ClientId={}, cleanSession={}",
                     clientID, cleanSession);
-            throw new IllegalArgumentException("Can't create a session with the ID of an already existing" + clientID);
         }
         LOG.debug("Creating new session. CId={}, cleanSession={}", clientID, cleanSession);
         PersistentSession persistentSession = new PersistentSession(cleanSession);
-        m_persistentSessions.putIfAbsent(clientID, persistentSession);
+        persistSession = redis.getMap(SESSION + clientID);
+        persistSession.putIfAbsent(clientID, persistentSession);
+        persistSession.expire(7, TimeUnit.DAYS);
         return new ClientSession(persistentSession.isActive(), clientID, this, this, cleanSession);
     }
 
     @Override
     public ClientSession sessionForClient(String clientID) {
         LOG.debug("Retrieving session CId={}", clientID);
-        if (!m_persistentSessions.containsKey(clientID)) {
+        persistSession = redis.getMap(SESSION + clientID);
+        if (!persistSession.isExists()) {
             LOG.warn("Session does not exist CId={}", clientID);
             return null;
         }
-
-        PersistentSession storedSession = m_persistentSessions.get(clientID);
+        PersistentSession storedSession = persistSession.get(clientID);
         return new ClientSession(storedSession.isActive(), clientID, this, this, storedSession.isCleanSession());
     }
 
     @Override
     public Collection<ClientSession> getAllSessions() {
         Collection<ClientSession> result = new ArrayList<>();
-        for (Map.Entry<String, PersistentSession> entry : m_persistentSessions.entrySet()) {
-            result.add(new ClientSession(entry.getValue().isActive(), entry.getKey(), this, this, entry.getValue().isCleanSession()));
+        keyForSessions = redis.getKeys().findKeysByPattern(SESSION + "*");
+        for (String key : keyForSessions) {
+            String clientID = key.replace(SESSION, "");
+            persistSession = redis.getMap(key);
+            PersistentSession entry = persistSession.get(clientID);
+            result.add(new ClientSession(entry.isActive(), clientID, this, this, entry.isCleanSession()));
         }
         return result;
     }
@@ -185,19 +191,23 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public void updateCleanStatus(String clientID, boolean cleanSession) {
         LOG.info("Updating cleanSession flag. CId={}, cleanSession={}", clientID, cleanSession);
-        m_persistentSessions.put(clientID, new PersistentSession(cleanSession));
+        persistSession = redis.getMap(SESSION + clientID);
+        if (!cleanSession) {
+            persistSession.expire(7, TimeUnit.DAYS);
+        }
+        persistSession.put(clientID, new PersistentSession(cleanSession));
     }
 
     @Override
     public boolean isInBlackList(String clientID) {
         LOG.info("Check clientId is in blackList. CId={}", clientID);
-        return m_blacklist.containsKey("bl:" + clientID);
+        return redis.getList(BLACKLIST + clientID).isExists();
     }
 
     @Override
     public void putInBlackList(String clientID) {
         LOG.info("Put clientId is in blackList. CId={}", clientID);
-        m_blacklist.putIfAbsent("bl:" + clientID, "");
+        redis.getList(BLACKLIST + clientID).add(new Date().getTime());
     }
 
     /**
@@ -206,14 +216,12 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public int nextPacketID(String clientID) {
         LOG.debug("Generating next packet ID CId={}", clientID);
-        Set<Integer> inFlightForClient = this.m_inFlightIds.get(clientID);
+        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
         if (inFlightForClient == null) {
             int nextPacketId = 1;
             inFlightForClient = new HashSet<>();
             inFlightForClient.add(nextPacketId);
-            this.m_inFlightIds.put(clientID, inFlightForClient);
             return nextPacketId;
-
         }
 
         int maxId = inFlightForClient.isEmpty() ? 0 : Collections.max(inFlightForClient);
@@ -226,18 +234,15 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public StoredMessage inFlightAck(String clientID, int messageID) {
         LOG.debug("Acknowledging inflight message CId={}, messageId={}", clientID, messageID);
-        ConcurrentMap<Integer, StoredMessage> m = this.outboundFlightMessages.get(clientID);
-        if (m == null) {
-            LOG.error("Can't find the inFlight record for client <{}>", clientID);
-            throw new RuntimeException("Can't find the inFlight record for client <" + clientID + ">");
+        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
+        if (outboundFlightMessages == null) {
+            LOG.warn("Can't find the inFlight record for client <{}>", clientID);
+            return null;
         }
-        LOG.info(m.toString());
-        StoredMessage msg = m.remove(String.valueOf(messageID));
-        LOG.info(msg.toString());
-        this.outboundFlightMessages.put(clientID, m);
+        StoredMessage msg = outboundFlightMessages.remove(messageID);
 
         // remove from the ids store
-        Set<Integer> inFlightForClient = this.m_inFlightIds.get(clientID);
+        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
         if (inFlightForClient != null) {
             inFlightForClient.remove(messageID);
         }
@@ -246,72 +251,66 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     @Override
     public void inFlight(String clientID, int messageID, StoredMessage msg) {
-        ConcurrentMap<Integer, StoredMessage> messages = outboundFlightMessages.get(clientID);
-        if (messages == null) {
-            messages = new ConcurrentHashMap<>();
-        }
-        messages.put(messageID, msg);
-        outboundFlightMessages.put(clientID, messages);
+        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
+        outboundFlightMessages.put(messageID, msg);
+        outboundFlightMessages.expire(7, TimeUnit.DAYS);
     }
 
     @Override
     public BlockingQueue<StoredMessage> queue(String clientID) {
         LOG.info("Queuing pending message. ClientId={}, guid={}", clientID);
-        return this.m_db.getBlockingQueue(clientID);
+        return this.redis.getBlockingQueue(clientID);
     }
 
     @Override
     public void dropQueue(String clientID) {
         LOG.info("Removing pending messages. ClientId={}", clientID);
-        this.m_db.getBlockingQueue(clientID).delete();
+        this.redis.getBlockingQueue(clientID).delete();
     }
 
     @Override
     public void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID, StoredMessage msg) {
         LOG.debug("Moving inflight message to 2nd phase ack state. ClientId={}, messageID={}", clientID, messageID);
-        ConcurrentMap<Integer, StoredMessage> m = this.m_secondPhaseStore.get(clientID);
-        if (m == null) {
+        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
+        if (secondPhaseMessages == null) {
             String error = String.format("Can't find the inFlight record for client <%s> during the second phase of " +
                     "QoS2 pub", clientID);
-            LOG.error(error);
-            throw new RuntimeException(error);
+            LOG.warn(error);
+        } else {
+            secondPhaseMessages.put(messageID, msg);
+            secondPhaseMessages.expire(7, TimeUnit.DAYS);
         }
-        m.put(messageID, msg);
-        this.outboundFlightMessages.put(clientID, m);
     }
 
     @Override
     public StoredMessage secondPhaseAcknowledged(String clientID, int messageID) {
         LOG.debug("Processing second phase ACK CId={}, messageId={}", clientID, messageID);
-        final ConcurrentMap<Integer, StoredMessage> m = this.m_secondPhaseStore.get(clientID);
-        if (m == null) {
+        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
+        if (secondPhaseMessages == null) {
             String error = String.format("Can't find the inFlight record for client <%s> during the second phase " +
                     "acking of QoS2 pub", clientID);
             LOG.error(error);
             throw new RuntimeException(error);
         }
-
-        StoredMessage msg = m.remove(messageID);
-        m_secondPhaseStore.put(clientID, m);
-        return msg;
+        return secondPhaseMessages.remove(messageID);
     }
 
     @Override
     public int getInflightMessagesNo(String clientID) {
         int totalInflight = 0;
-        ConcurrentMap<Integer, StoredMessage> inflightPerClient = m_db.getMap(inboundMessageId2MessagesMapName(clientID));
+        RMap<Integer, StoredMessage> inflightPerClient = redis.getMap(inboundMessageId2MessagesMapName(clientID));
         if (inflightPerClient != null) {
             totalInflight += inflightPerClient.size();
         }
 
-        Map<Integer, StoredMessage> secondPhaseInFlight = this.m_secondPhaseStore.get(clientID);
-        if (secondPhaseInFlight != null) {
-            totalInflight += secondPhaseInFlight.size();
+        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
+        if (secondPhaseMessages != null) {
+            totalInflight += secondPhaseMessages.size();
         }
 
-        Map<Integer, StoredMessage> outboundPerClient = outboundFlightMessages.get(clientID);
-        if (outboundPerClient != null) {
-            totalInflight += outboundPerClient.size();
+        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
+        if (outboundFlightMessages != null) {
+            totalInflight += outboundFlightMessages.size();
         }
 
         return totalInflight;
@@ -320,14 +319,15 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public StoredMessage inboundInflight(String clientID, int messageID) {
         LOG.debug("Mapping inbound message ID to GUID CId={}, messageId={}", clientID, messageID);
-        ConcurrentMap<Integer, StoredMessage> messageIdToGuid = m_db.getMap(inboundMessageId2MessagesMapName(clientID));
+        RMap<Integer, StoredMessage> messageIdToGuid = redis.getMap(inboundMessageId2MessagesMapName(clientID));
         return messageIdToGuid.get(messageID);
     }
 
     @Override
     public void markAsInboundInflight(String clientID, int messageID, StoredMessage msg) {
-        ConcurrentMap<Integer, StoredMessage> messageIdToGuid = m_db.getMap(inboundMessageId2MessagesMapName(clientID));
+        RMap<Integer, StoredMessage> messageIdToGuid = redis.getMap(inboundMessageId2MessagesMapName(clientID));
         messageIdToGuid.put(messageID, msg);
+        messageIdToGuid.expire(7, TimeUnit.DAYS);
     }
 
     @Override
@@ -337,29 +337,31 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     @Override
     public int getSecondPhaseAckPendingMessages(String clientID) {
-        if (!m_secondPhaseStore.containsKey(clientID))
+        if (!redis.getMap(SECOND_PHASE + clientID).isExists())
             return 0;
-        return m_secondPhaseStore.get(clientID).size();
+        return redis.getMap(SECOND_PHASE + clientID).size();
     }
 
     @Override
     public void offlineSession(String clientID) {
-        if (!m_persistentSessions.containsKey(clientID)) {
+        if (!redis.getMap(SESSION + clientID).isExists()) {
             LOG.warn("Session does not exist CId={}", clientID);
             return;
         }
-        PersistentSession persistentSession = m_persistentSessions.get(clientID);
+        persistSession = redis.getMap(SESSION + clientID);
+        PersistentSession persistentSession = persistSession.get(clientID);
         persistentSession.setActive(false);
-        m_persistentSessions.put(clientID, persistentSession);
+        persistSession.put(clientID, persistentSession);
     }
 
     @Override
     public boolean getSessionStatus(String clientID) {
-        if (!m_persistentSessions.containsKey(clientID)) {
+        if (!redis.getMap(SESSION + clientID).isExists()) {
             LOG.warn("Session does not exist CId={}", clientID);
             return false;
         }
-        PersistentSession persistentSession = m_persistentSessions.get(clientID);
+        persistSession = redis.getMap(SESSION + clientID);
+        PersistentSession persistentSession = persistSession.get(clientID);
         return persistentSession.isActive();
     }
 
@@ -367,9 +369,9 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     public void cleanSession(String clientID) {
         // remove also the messages stored of type QoS1/2
         LOG.info("Removing stored messages with QoS 1 and 2. ClientId={}", clientID);
-        m_secondPhaseStore.remove(clientID);
-        outboundFlightMessages.remove(clientID);
-        m_inFlightIds.remove(clientID);
+        redis.getMap(SECOND_PHASE + clientID).delete();
+        redis.getMap(OUTBOUND_FLIGHT + clientID).delete();
+        redis.getSet(INFLIGHT_PACKETIDS + clientID).delete();
 
         LOG.info("Wiping existing subscriptions. ClientId={}", clientID);
         wipeSubscriptions(clientID);
@@ -380,6 +382,6 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
 
     private static String inboundMessageId2MessagesMapName(String clientID) {
-        return "inboundInflight_" + clientID;
+        return INBOUND_INFLIGHT + clientID;
     }
 }

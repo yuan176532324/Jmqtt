@@ -16,7 +16,6 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.IMessagesStore;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
@@ -62,10 +61,6 @@ class Qos1PublishHandler extends QosPublishHandler {
         }
 
         final int messageID = msg.variableHeader().messageId();
-
-        // route message to subscribers
-        StoredMessage toStoreMsg = ProtocolProcessor.asStoredMessage(msg);
-        toStoreMsg.setClientID(clientID);
 
         sendPubAck(clientID, messageID);
 

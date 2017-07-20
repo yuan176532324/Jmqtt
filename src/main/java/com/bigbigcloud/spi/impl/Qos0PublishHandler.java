@@ -16,7 +16,6 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.IMessagesStore;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
@@ -53,11 +52,6 @@ class Qos0PublishHandler extends QosPublishHandler {
             LOG.error("MQTT client is not authorized to publish on topic. CId={}, topic={}", clientID, topic);
             return;
         }
-
-        // route message to subscribers
-        StoredMessage toStoreMsg = ProtocolProcessor.asStoredMessage(msg);
-        toStoreMsg.setClientID(clientID);
-
         m_interceptor.notifyTopicPublished(msg, clientID, username);
     }
 }

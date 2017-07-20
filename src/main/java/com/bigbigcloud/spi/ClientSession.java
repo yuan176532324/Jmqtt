@@ -17,15 +17,16 @@
 package com.bigbigcloud.spi;
 
 import com.bigbigcloud.common.model.StoredMessage;
+import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import com.bigbigcloud.spi.ISubscriptionsStore.ClientTopicCouple;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Model a Session like describe on page 25 of MQTT 3.1.1 specification:
@@ -210,6 +211,7 @@ public class ClientSession {
      * @param message the message to enqueue.
      */
     public void enqueue(StoredMessage message) {
+        RedissonUtil.getRedisson().getQueue(this.clientID).expire(7, TimeUnit.DAYS);
         this.m_sessionsStore.queue(this.clientID).add(message);
     }
 
