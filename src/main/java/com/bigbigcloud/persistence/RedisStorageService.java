@@ -30,9 +30,9 @@ public class RedisStorageService implements IStore {
 
     private RedisSessionsStore m_sessionsStore;
     private RedisMessagesStore m_messagesStore;
-    private RedissonClient redis = RedissonUtil.getRedisson();
 
     public RedisStorageService() throws IOException {
+        RedissonClient redis = RedissonUtil.getRedisson();
         m_messagesStore = new RedisMessagesStore(redis);
         m_sessionsStore = new RedisSessionsStore(redis);
         m_messagesStore.initStore();
@@ -51,6 +51,5 @@ public class RedisStorageService implements IStore {
 
     @Override
     public void close() {
-        RedissonUtil.closeRedisson(redis);
     }
 }

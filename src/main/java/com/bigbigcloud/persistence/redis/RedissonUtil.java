@@ -14,43 +14,12 @@ import java.io.IOException;
 
 
 public final class RedissonUtil {
+  //全局变量，初始化后即获取client
+    private static final RedissonUtil redisUtils = new RedissonUtil();
 
-    //Redis服务器IP
-    private static String HOST = "";
-    private static RedissonUtil redisUtils;
-    //Redis的端口号
-    private static int PORT = 6379;
+    private RedissonClient redissonClient;
 
-    public static RedissonUtil getInstance() {
-        if (redisUtils == null)
-            synchronized (RedissonUtil.class) {
-                if (redisUtils == null)
-                    redisUtils = new RedissonUtil();
-            }
-        return redisUtils;
-    }
-
-    public static RedissonClient redissonClient;
-
-    /**
-     * 使用config创建Redisson
-     * Redisson是用于连接Redis Server的基础类
-     *
-     * @param config
-     * @return
-     */
-    public RedissonClient getRedisson(Config config) {
-        RedissonClient redisson = Redisson.create(config);
-        System.out.println("成功连接Redis Server");
-        return redisson;
-    }
-
-    /**
-     * 使用ip地址和端口创建Redisson
-     *
-     * @return
-     */
-    public static RedissonClient getRedisson() {
+    private RedissonUtil() {
         Config config = new Config();
         try {
             config = Config.fromJSON(new File(BrokerConstants.CONFIG_LOCATION + BrokerConstants.REDIS_CONFIG));
@@ -58,18 +27,11 @@ public final class RedissonUtil {
             e.printStackTrace();
         }
         config.useSingleServer();
-        redissonClient = Redisson.create(config);
-        return redissonClient;
+        this.redissonClient = Redisson.create(config);
     }
 
-    /**
-     * 关闭Redisson客户端连接
-     *
-     * @param redisson
-     */
-    public static void closeRedisson(RedissonClient redisson) {
-        redisson.shutdown();
-        System.out.println("成功关闭Redis Client连接");
+    public static RedissonClient getRedisson() {
+        return redisUtils.redissonClient;
     }
 
 }
