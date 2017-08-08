@@ -16,7 +16,7 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.*;
+import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.*;
