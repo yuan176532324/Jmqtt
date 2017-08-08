@@ -1,0 +1,57 @@
+*** Settings ***    Value
+Library           MQTTLibrary
+Library           BuiltIn
+
+*** Variables ***    Value
+${broker.uri}     mqtt.bigbigon.com
+${broker.port}    1883
+${client.id}      device:yy:yy:yy
+${topic}          p2p/mqtt
+${sub.topic}      p2p/mqtt_test_yy
+
+*** Keywords ***
+Publish to MQTT Broker and Disconnect
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${message}=${EMPTY}    ${qos}=0
+    ...    ${retention}=${false}
+    Connect    ${broker.uri}    ${port}    ${client.id}
+    Publish    ${topic}    ${message}    ${qos}    ${retention}
+    [Teardown]    Disconnect
+
+Subscribe to MQTT Broker and Validate
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${message}=${EMPTY}    ${qos}=1
+    ...    ${timeout}=1s
+    Connect    ${broker.uri}    ${port}    ${client.id}    ${false}
+    Subscribe and Validate    ${topic}    ${qos}    ${message}    ${timeout}
+    [Teardown]    Disconnect
+
+Subscribe and Get Messages
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${qos}=1    ${timeout}=10s
+    ...    ${limit}=0
+    Connect    ${broker.uri}    ${port}    ${client.id}    ${false}
+    @{messages}    Subscribe    ${topic}    ${qos}    ${timeout}    ${limit}
+    [Teardown]    Disconnect
+    [Return]    @{messages}
+
+Subscribe and Unsubscribe
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${qos}=1    ${timeout}=1s
+    ...    ${limit}=1
+    Connect    ${broker.uri}    ${port}    ${client.id}    ${false}
+    @{messages}    Subscribe    ${topic}    ${qos}    ${timeout}    ${limit}
+    Unsubscribe    ${topic}
+    [Teardown]    Disconnect
+    [Return]    @{messages}
+
+Subscribe and return conn
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${qos}=1    ${timeout}=10s
+    ...    ${limit}=0
+    ${mqttc}    Connect    ${broker.uri}    ${port}    ${client.id}    ${false}
+    Subscribe    ${topic}    ${qos}    ${timeout}    ${limit}
+    [Teardown]
+    [Return]    ${mqttc}
+
+Subscribe from exist conn
+    [Arguments]    ${broker.uri}=${broker.uri}    ${port}=${broker.port}    ${client.id}=${client.id}    ${topic}=${topic}    ${qos}=1    ${timeout}=5s
+    ...    ${limit}=0    ${mqttc}=${mqttc}
+    @{messages}    Subscribe With Mqttc    ${mqttc}    ${topic}    ${qos}    ${timeout}    ${limit}
+    [Teardown]    Disconnect
+    [Return]    @{messages}

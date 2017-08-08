@@ -22,6 +22,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
+import java.net.InetSocketAddress;
+
 /**
  * Some Netty's channels utilities.
  */
@@ -59,6 +61,21 @@ public final class NettyUtils {
 
     public static String clientID(Channel channel) {
         return (String) channel.attr(NettyUtils.ATTR_KEY_CLIENTID).get();
+    }
+
+    static String remoteHostname(Channel channel) {
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        return inetSocketAddress.getHostName();
+    }
+
+    static String remoteIp(Channel channel) {
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        return inetSocketAddress.getAddress().getHostAddress();
+    }
+
+    static int remotePort(Channel channel) {
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        return inetSocketAddress.getPort();
     }
 
     public static void userName(Channel channel, String username) {

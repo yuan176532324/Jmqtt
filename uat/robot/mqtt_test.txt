@@ -1,0 +1,155 @@
+*** Settings ***    Value
+Test Timeout      30 seconds
+Resource          keywords.txt
+Library           MQTTLibrary
+Library           RequestsLibrary
+
+*** Test Cases ***
+Publish a non-empty message
+    ${time}    Get Time    epoch
+    ${message}    Catenate    test message    ${time}
+    Publish to MQTT Broker and Disconnect    message=${message}
+
+Publish an empty message
+    Publish to MQTT Broker and Disconnect
+
+Publish a message with QOS 1 and validate that the message is received
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    ${message}    Set Variable    subscription test message
+    Run Keyword And Expect Error    The expected payload didn't arrive in the topic    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=${message}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=${message}    qos=1
+    Sleep    1s
+    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=${message}
+
+Publish multiple messages and confirm that validation succeeds only after correct message is published
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    ${message}    Set Variable    subscription test message
+    Run Keyword And Expect Error    The expected payload didn't arrive in the topic    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=${message}
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=message1    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=message2    qos=1
+    Sleep    1s
+    Run Keyword And Expect Error    The expected payload didn't arrive in the topic    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=${message}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=${message}    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=message3    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=message4    qos=1
+    Sleep    1s
+    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=${message}
+
+Publish an empty message with QOS 1 and validate
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    Run Keyword And Expect Error    The expected payload didn't arrive in the topic    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    qos=1
+    Sleep    1s
+    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}
+
+Publish and validate with regular expression
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    ${message}    Set Variable    subscription test message
+    ${regex}    Set Variable    ^subscription [test]{4} message$
+    Run Keyword And Expect Error    The expected payload didn't arrive in the topic    Subscribe to MQTT Broker and Validate    client.id=${client}    topic=${topic}    message=whatever
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=${message}    qos=1
+
+Subscribe for the first time and validate that no messages are received
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    @{messages}    Subscribe and Get Messages    client.id=${client}    topic=${topic}    timeout=5s
+    LOG    ${messages}
+    Length Should Be    ${messages}    0
+
+Subscribe, publish 1 message and validate it is received
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    Subscribe and Get Messages    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message    qos=1
+    @{messages}    Subscribe and Get Messages    client.id=${client}    topic=${topic}
+    LOG    ${messages}
+    Length Should Be    ${messages}    1
+    Should Be Equal As Strings    @{messages}[0]    test message
+
+Subscribe with no limit, publish multiple messages and validate they are received
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    ${mqttc}    Subscribe and return conn    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message1    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message2    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message3    qos=1
+    Sleep    1s
+    @{messages}    Subscribe from exist conn    mqttc=${mqttc}    client.id=${client}    topic=${topic}    limit=0
+    LOG    ${messages}
+
+Subscribe with limit
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    Subscribe and Get Messages    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message1    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message2    qos=1
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message3    qos=1
+    @{messages}    Subscribe and Get Messages    client.id=${client}    topic=${topic}    limit=1
+    LOG    ${messages}
+    @{messages}    Subscribe and Get Messages    client.id=${client}    topic=${topic}    limit=2
+    LOG    ${messages}
+
+Unsubscribe and validate no messages are received
+    Sleep    1s
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    Subscribe and Get Messages    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message1    qos=1
+    @{messages}    Subscribe and Unsubscribe    client.id=${client}    topic=${topic}
+    Sleep    1s
+    Publish to MQTT Broker and Disconnect    topic=${topic}    message=test message2    qos=1
+    @{messages}    Subscribe and Get Messages    client.id=${client}    topic=${topic}
+    LOG    ${messages}
+
+Publish to a broker that requires username, password authentication
+    [Tags]    local-only
+    ${time}    Get Time    epoch
+    ${topic}    Set Variable    p2p/mqtt_test_yy
+    Set username and password    user1    2080481a35d431a8e6a1a178a12090f2bcbdca07
+    Connect    mqtt.bigbigon.com    1883    device:95:52792cb8-67e1-46b0-8f87-ece9b9f21a52:0.11.10
+    Publish    ${topic}    test message with username and password
+    [Teardown]    Disconnect
+
+Publish to a broker that requires username, password authentication with invalid password
+    [Tags]    local-only
+    ${time}    Get Time    epoch
+    ${client}    Catenate    SEPARATOR=.    robot.mqtt    ${time}
+    ${topic}    Set Variable    test
+    Set username and password    user1    test
+    Run Keyword and expect error    The client disconnected unexpectedly    Connect    mqtt.bigbigon.com    1883    ${client}
+    [Teardown]    Disconnect

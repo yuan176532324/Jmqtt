@@ -16,7 +16,7 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.StoredMessage;
+import com.bigbigcloud.common.model.*;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.*;
@@ -269,10 +269,11 @@ public class ProtocolProcessor {
         boolean isActive = m_sessionsStore.getSessionStatus(clientId);
         if (isActive) {
             if (existing != null) {
-                LOG.info("The client ID is being used in an existing connection. It will be closed. CId={}", clientId);
+                LOG.info("Client ID is being used in an existing connection, force to be closed. CId={}", clientId);
                 channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
                 existing.abort();
-                return;
+                this.connectionDescriptors.removeConnection(existing);
+                this.connectionDescriptors.addConnection(descriptor);
             }
         }
         //超时时间统一配置
@@ -300,7 +301,7 @@ public class ProtocolProcessor {
             channel.close();
         }
 
-        LOG.info("The CONNECT message has been processed. CId={}, username={}", clientId, payload.userName());
+        LOG.info("CONNECT message processed. CId={}, username={}", clientId, payload.userName());
     }
 
     private MqttConnAckMessage connAck(MqttConnectReturnCode returnCode) {
