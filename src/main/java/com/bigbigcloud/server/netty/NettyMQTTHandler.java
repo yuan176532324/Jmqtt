@@ -72,11 +72,11 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
                     break;
                 case PINGREQ:
                     MqttFixedHeader pingHeader = new MqttFixedHeader(
-                        MqttMessageType.PINGRESP,
-                        false,
-                        AT_MOST_ONCE,
-                        false,
-                        0);
+                            MqttMessageType.PINGRESP,
+                            false,
+                            AT_MOST_ONCE,
+                            false,
+                            0);
                     MqttMessage pingResp = new MqttMessage(pingHeader);
                     ctx.writeAndFlush(pingResp);
                     break;
@@ -103,11 +103,14 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         LOG.error(
-            "An unexpected exception was caught while processing MQTT message. "
-                + "Closing Netty channel. MqttClientId = {}, cause = {}, errorMessage = {}.",
-            NettyUtils.clientID(ctx.channel()),
-            cause.getCause(),
-            cause.getMessage());
+                "An unexpected exception was caught while processing MQTT message. "
+                        + "Closing Netty channel. remote Host name is = {}, remote IP is = {} , remote Port is = {}, MqttClientId = {}, cause = {}, errorMessage = {}.",
+                NettyUtils.remoteHostname(ctx.channel()),
+                NettyUtils.remoteIp(ctx.channel()),
+                NettyUtils.remotePort(ctx.channel()),
+                NettyUtils.clientID(ctx.channel()),
+                cause.getCause(),
+                cause.getMessage());
         ctx.close();
     }
 
