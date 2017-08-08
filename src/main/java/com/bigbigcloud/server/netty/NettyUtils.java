@@ -78,6 +78,11 @@ public final class NettyUtils {
         return inetSocketAddress.getPort();
     }
 
+    static String remoteAddress(Channel channel) {
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        return inetSocketAddress.getAddress().getHostAddress() + "(" + inetSocketAddress.getHostName() + "):" + inetSocketAddress.getPort();
+    }
+
     public static void userName(Channel channel, String username) {
         channel.attr(NettyUtils.ATTR_KEY_USERNAME).set(username);
     }

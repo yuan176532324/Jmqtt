@@ -102,15 +102,24 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        LOG.error(
+        String clientID = NettyUtils.clientID(ctx.channel());
+        if (clientID != null && !clientID.isEmpty()) {
+            LOG.error(
                 "An unexpected exception was caught while processing MQTT message. "
-                        + "Closing Netty channel. remote Host name is = {}, remote IP is = {} , remote Port is = {}, MqttClientId = {}, cause = {}, errorMessage = {}.",
-                NettyUtils.remoteHostname(ctx.channel()),
-                NettyUtils.remoteIp(ctx.channel()),
-                NettyUtils.remotePort(ctx.channel()),
-                NettyUtils.clientID(ctx.channel()),
+                    + "Closing Netty channel. remote address is = {}, MqttClientId = {}, cause = {}, errorMessage = {}.",
+                NettyUtils.remoteAddress(ctx.channel()),
+                clientID,
                 cause.getCause(),
                 cause.getMessage());
+        } else if(LOG.isDebugEnabled()){
+            LOG.debug(
+                "An unexpected exception was caught while processing MQTT message. "
+                    + "Closing Netty channel. remote address is = {}, MqttClientId = {}, cause = {}, errorMessage = {}.",
+                NettyUtils.remoteAddress(ctx.channel()),
+                clientID,
+                cause.getCause(),
+                cause.getMessage());
+        }
         ctx.close();
     }
 
