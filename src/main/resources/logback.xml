@@ -12,7 +12,7 @@
 
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/data/logs/webapps/moquette_yy.log</file>
+        <file>/data/logs/webapps/moquette.log</file>
         <append>false</append>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
