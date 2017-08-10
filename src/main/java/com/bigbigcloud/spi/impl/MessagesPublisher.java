@@ -16,7 +16,12 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
+import com.bigbigcloud.persistence.redis.MessageStatus;
+import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.persistence.redis.TrackedMessage;
+import com.bigbigcloud.server.ConnectionDescriptor;
 import com.bigbigcloud.spi.ISessionsStore;
 import com.bigbigcloud.spi.ClientSession;
 import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
@@ -25,10 +30,18 @@ import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.*;
+import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
+import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
+import static com.bigbigcloud.persistence.redis.MessageStatus.*;
 
 class MessagesPublisher {
 
@@ -57,31 +70,34 @@ class MessagesPublisher {
         return new MqttPublishMessage(fixedHeader, varHeader, message);
     }
 
-    void publish2Subscribers(StoredMessage pubMsg, Topic topic, int messageID) throws IOException {
-//        if (LOG.isTraceEnabled()) {
-//            LOG.trace("Sending publish message to subscribers. CId={}, topic={}, messageId={}, payload={}, " +
-//                            "subscriptionTree={}", pubMsg.getClientID(), topic, messageID, DebugUtils.payload2Str(pubMsg.getPayload()),
-//                    subscriptions.dumpTree());
-//        } else {
-//            LOG.info("Sending publish message to subscribers. CId={}, topic={}, messageId={}", pubMsg.getClientID(), topic,
-//                    messageID);
-//        }
-        publish2Subscribers(pubMsg, topic);
-    }
-
     void publish2Subscribers(StoredMessage pubMsg, Topic topic) throws IOException {
         List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
         final String topic1 = pubMsg.getTopic();
         final MqttQoS publishingQos = pubMsg.getQos();
         final ByteBuf origPayload = pubMsg.getPayload();
-        LOG.info("topicMatchingSubscriptions:" + topicMatchingSubscriptions);
+        //标记 发布者+消息 状态为READY_TO_PUB
+        RBucket<TrackedMessage> rBucket_pub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + pubMsg.getClientID() + "_" + pubMsg.getGuid().toString());
+        rBucket_pub.set(new TrackedMessage(READY_TO_PUB), 7, TimeUnit.DAYS);
+        //为订阅者分发消息
         for (final Subscription sub : topicMatchingSubscriptions) {
+            RBucket<TrackedMessage> rBucket_sub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + sub.getClientId() + "_" + pubMsg.getGuid().toString());
+            RBucket<StoredMessage> rStrore = RedissonUtil.getRedisson().getBucket(OFFLINE_MESSAGES + sub.getClientId() + "_" + pubMsg.getGuid().toString());
+            //初始化 订阅者+消息 状态为PUB_TO_SUBER
+            if (!rBucket_sub.isExists()) {
+                rBucket_sub.set(new TrackedMessage(PUB_TO_SUBER), 7, TimeUnit.DAYS);
+            }
+
             MqttQoS qos = ProtocolProcessor.lowerQosToTheSubscriptionDesired(sub, publishingQos);
             ClientSession targetSession = m_sessionsStore.sessionForClient(sub.getClientId());
-
-            boolean targetIsActive = m_sessionsStore.getSessionStatus(sub.getClientId());
+            //该连接是否在本机
+            boolean targetIsActive = this.connectionDescriptors.isConnected(sub.getClientId());
+            //该连接是否在线
+            boolean isOnline = m_sessionsStore.getSessionStatus(sub.getClientId());
 //TODO move all this logic into messageSender, which puts into the flightZone only the messages that pull out of the queue.
-            if (targetIsActive) {
+
+            LOG.info("msg state is :" + rBucket_sub.get().getMessageStatus());
+            //若连接在本机&&消息未被发送完成
+            if (targetIsActive && !rBucket_sub.get().getMessageStatus().equals(COMPLETED)) {
                 LOG.debug("Sending PUBLISH message to active subscriber. CId={}, topicFilter={}, qos={}",
                         sub.getClientId(), sub.getTopicFilter(), qos);
                 // we need to retain because duplicate only 'copy r/w indexes and don't retain() causing
@@ -96,12 +112,10 @@ class MessagesPublisher {
                 } else {
                     publishMsg = notRetainedPublish(topic1, qos, payload);
                 }
-                this.messageSender.sendPublish(targetSession, publishMsg);
-            } else {
+                this.messageSender.sendPublish(targetSession, publishMsg, pubMsg.getGuid());
+            } else if (!isOnline && !rBucket_sub.get().getMessageStatus().equals(COMPLETED) && !rBucket_sub.get().getMessageStatus().equals(PUB_OFFLINE)) {
                 if (!targetSession.isCleanSession()) {
-                    LOG.debug("Storing pending PUBLISH inactive message. CId={}, topicFilter={}, qos={}",
-                            sub.getClientId(), sub.getTopicFilter(), qos);
-                    // store the message in targetSession queue to deliver
+                    rBucket_sub.set(new TrackedMessage(PUB_OFFLINE), 7, TimeUnit.DAYS);
                     targetSession.enqueue(pubMsg);
                 }
             }

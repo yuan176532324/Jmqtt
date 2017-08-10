@@ -16,14 +16,17 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.spi.ClientSession;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Queue;
+import java.util.UUID;
 
 class InternalRepublisher {
 
@@ -47,8 +50,7 @@ class InternalRepublisher {
                 // set the PacketIdentifier only for QoS > 0
                 publishMsg = retainedPublish(storedMsg, packetID);
             }
-
-            this.messageSender.sendPublish(targetSession, publishMsg);
+            this.messageSender.sendPublish(targetSession, publishMsg, storedMsg.getGuid());
         }
     }
 
@@ -64,7 +66,7 @@ class InternalRepublisher {
             if (publishMsg.fixedHeader().qosLevel() != MqttQoS.AT_MOST_ONCE) {
                 publishMsg = notRetainedPublish(pubEvt, messageId);
             }
-            this.messageSender.sendPublish(clientSession, publishMsg);
+            this.messageSender.sendPublish(clientSession, publishMsg, pubEvt.getGuid());
         }
     }
 

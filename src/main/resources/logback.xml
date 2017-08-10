@@ -12,7 +12,7 @@
 
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/data/logs/webapps/moquette.log</file>
+        <file>/data/logs/webapps/moquette_yy.log</file>
         <append>false</append>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
@@ -43,7 +43,7 @@
         <appender-ref ref="ASYNC"/>
     </logger>
 
-    <logger name="com.bigbigcloud" level="WARN" additivity="false">
+    <logger name="com.bigbigcloud" level="DEBUG" additivity="false">
         <appender-ref ref="ASYNC"/>
     </logger>
 

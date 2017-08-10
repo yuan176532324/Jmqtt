@@ -93,6 +93,10 @@ public final class BrokerConstants {
     public static final String SECOND_PHASE = "secondPhase:";
     public static final String DH_PATH = "devicehivePath";
     public static final String APPHUB_PATH = "apphubPath";
+    public static final String MESSAGE_STATUS = "msgStatus_";
+    public static final String OFFLINE_MESSAGES = "offlineMsg_";
+    public static final String IN_FLIGHT = "inFlight_";
+    public static final String SECOND_FLIGHT = "secFlight_";
     private BrokerConstants() {
     }
 }

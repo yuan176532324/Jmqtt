@@ -58,7 +58,7 @@ final class ConsumerThread implements Runnable {
                 MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(kafkaMsg.getTopic(), 0);
                 ByteBuf payload = Unpooled.wrappedBuffer(kafkaMsg.getPayload());
                 MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
-                server.internalPublish(publishMessage, kafkaMsg.getClientId());
+                server.internalPublish(publishMessage, kafkaMsg.getClientId(), kafkaMsg.getGuid());
             } catch (Exception ex) {
                 LOG.error("error polling kafka msg queue", ex);
             }

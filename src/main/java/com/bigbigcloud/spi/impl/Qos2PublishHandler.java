@@ -94,13 +94,13 @@ class Qos2PublishHandler extends QosPublishHandler {
         LOG.debug("Sending PUBREC message. CId={}, messageId={}", clientID, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, AT_MOST_ONCE, false, 0);
         MqttMessage pubRecMessage = new MqttMessage(fixedHeader, from(messageID));
-        connectionDescriptors.sendMessage(pubRecMessage, messageID, clientID);
+        connectionDescriptors.sendMessage(pubRecMessage, messageID, clientID, null);
     }
 
     private void sendPubComp(String clientID, int messageID) {
         LOG.debug("Sending PUBCOMP message. CId={}, messageId={}", clientID, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBCOMP, false, AT_MOST_ONCE, false, 0);
         MqttMessage pubCompMessage = new MqttMessage(fixedHeader, from(messageID));
-        connectionDescriptors.sendMessage(pubCompMessage, messageID, clientID);
+        connectionDescriptors.sendMessage(pubCompMessage, messageID, clientID, null);
     }
 }

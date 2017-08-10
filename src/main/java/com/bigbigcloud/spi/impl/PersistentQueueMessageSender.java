@@ -16,13 +16,23 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
+import com.bigbigcloud.common.model.StoredMessage;
+import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
 import com.bigbigcloud.spi.ClientSession;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import io.netty.handler.codec.mqtt.MqttQoS;
+import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.TimeUnit;
+
+import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
+import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
+import static com.bigbigcloud.persistence.redis.MessageStatus.PUB_OFFLINE;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
 class PersistentQueueMessageSender {
@@ -34,7 +44,7 @@ class PersistentQueueMessageSender {
         this.connectionDescriptorStore = connectionDescriptorStore;
     }
 
-    void sendPublish(ClientSession clientsession, MqttPublishMessage pubMessage) {
+    void sendPublish(ClientSession clientsession, MqttPublishMessage pubMessage, MessageGUID messageGUID) {
         String clientId = clientsession.clientID;
         final int messageId = pubMessage.variableHeader().messageId();
         final String topicName = pubMessage.variableHeader().topicName();
@@ -46,15 +56,20 @@ class PersistentQueueMessageSender {
             LOG.info("Sending PUBLISH message. MessageId={}, CId={}, topic={}", messageId, clientId, topicName);
         }
 
-        boolean messageDelivered = connectionDescriptorStore.sendMessage(pubMessage, messageId, clientId);
+        RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientId + "_" + messageGUID.toString());
+
+        boolean messageDelivered = connectionDescriptorStore.sendMessage(pubMessage, messageId, clientId, messageGUID);
 
         if (!messageDelivered) {
-            LOG.warn("PUBLISH message could not be delivered. It will be stored. MessageId={}, CId={}, topic={}, "
-                    + "qos={}, cleanSession={}", messageId, clientId, topicName, qos, false);
-            clientsession.enqueue(ProtocolProcessor.asStoredMessage(pubMessage));
-        } else {
-            LOG.warn("PUBLISH message could not be delivered. It will be discarded. MessageId={}, CId={}, topic={}, " +
-                    "qos={}, cleanSession={}", messageId, clientId, topicName, qos, true);
+            if (qos != AT_MOST_ONCE && !clientsession.isCleanSession()) {
+                LOG.warn("PUBLISH message could not be delivered. It will be stored. MessageId={}, CId={}, topic={}, "
+                        + "qos={}, cleanSession={}", messageId, clientId, topicName, qos, false);
+                rBucket.set(new TrackedMessage(PUB_OFFLINE), 7, TimeUnit.DAYS);
+                clientsession.enqueue(ProtocolProcessor.asStoredMessage(pubMessage));
+            } else {
+                LOG.warn("PUBLISH message could not be delivered. It will be discarded. MessageId={}, CId={}, topic={}, " +
+                        "qos={}, cleanSession={}", messageId, clientId, topicName, qos, true);
+            }
         }
     }
 }

@@ -16,8 +16,9 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.StoredMessage;
+import com.bigbigcloud.common.model.*;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.*;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
@@ -34,8 +35,11 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.omg.PortableInterceptor.SUCCESSFUL;
+import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -43,6 +47,13 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
+import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
+import static com.bigbigcloud.persistence.redis.MessageStatus.COMPLETED;
+import static com.bigbigcloud.persistence.redis.MessageStatus.SENT_SEC;
+import static com.bigbigcloud.persistence.redis.MessageStatus.SUCCESS;
 import static com.bigbigcloud.spi.impl.InternalRepublisher.createPublishForQos;
 import static com.bigbigcloud.spi.impl.Utils.messageId;
 import static com.bigbigcloud.spi.impl.Utils.readBytesAndRewind;
@@ -301,7 +312,7 @@ public class ProtocolProcessor {
             channel.close();
         }
 
-        LOG.info("CONNECT message processed. CId={}, username={}", clientId, payload.userName());
+        LOG.info("The CONNECT message has been processed. CId={}, username={}", clientId, payload.userName());
     }
 
     private MqttConnAckMessage connAck(MqttConnectReturnCode returnCode) {
@@ -476,6 +487,9 @@ public class ProtocolProcessor {
 
         ClientSession targetSession = m_sessionsStore.sessionForClient(clientID);
         StoredMessage inflightMsg = targetSession.inFlightAcknowledged(messageID);
+        LOG.info("processPubAck:" + MESSAGE_STATUS + clientID + "_" + inflightMsg.getGuid().toString());
+        RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + inflightMsg.getGuid().toString());
+        rBucket.set(new TrackedMessage(SUCCESS));
         LOG.info("inflightMsg is:" + inflightMsg.toString());
         String topic = inflightMsg.getTopic();
         InterceptAcknowledgedMessage wrapped = new InterceptAcknowledgedMessage(inflightMsg, topic, username, messageID);
@@ -530,13 +544,13 @@ public class ProtocolProcessor {
      * @param msg      the message to publish.
      * @param clientId the clientID
      */
-    public void internalPublish(MqttPublishMessage msg, final String clientId) throws IOException {
+    public void internalPublish(MqttPublishMessage msg, final String clientId, MessageGUID messageGUID) throws IOException {
         final MqttQoS qos = msg.fixedHeader().qosLevel();
         final Topic topic = new Topic(msg.variableHeader().topicName());
         LOG.info("Sending PUBLISH message. Topic={}, qos={}", topic, qos);
 
-        MessageGUID messageGUID = null;
         StoredMessage toStoreMsg = asStoredMessage(msg);
+        toStoreMsg.setGuid(messageGUID);
         if (clientId == null || clientId.isEmpty()) {
             toStoreMsg.setClientID("BROKER_SELF");
         } else {
@@ -608,6 +622,8 @@ public class ProtocolProcessor {
         // once received the PUBCOMP then remove the message from the temp memory
         ClientSession targetSession = m_sessionsStore.sessionForClient(clientID);
         StoredMessage inflightMsg = targetSession.secondPhaseAcknowledged(messageID);
+        RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + messageID + "_" + inflightMsg.getGuid().toString());
+        rBucket.set(new TrackedMessage(COMPLETED));
         String username = NettyUtils.userName(channel);
         String topic = inflightMsg.getTopic();
         m_interceptor.notifyMessageAcknowledged(new InterceptAcknowledgedMessage(inflightMsg, topic, username, messageID));

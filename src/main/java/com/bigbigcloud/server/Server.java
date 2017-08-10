@@ -17,6 +17,7 @@
 package com.bigbigcloud.server;
 
 import com.bigbigcloud.BrokerConstants;
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.connections.IConnectionsManager;
 import com.bigbigcloud.interception.HazelcastInterceptHandler;
 import com.bigbigcloud.interception.InterceptHandler;
@@ -195,40 +196,11 @@ public class Server {
         configureKafka(config);
     }
 
-    private void configureCluster(IConfig config) throws FileNotFoundException {
-        LOG.info("Configuring embedded Hazelcast instance");
-        String interceptHandlerClassname = config.getProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME);
-        if (interceptHandlerClassname == null || !HZ_INTERCEPT_HANDLER.equals(interceptHandlerClassname)) {
-            LOG.info("There are no Hazelcast intercept handlers. The server won't start a Hazelcast instance.");
-            return;
-        }
-        String hzConfigPath = config.getProperty(BrokerConstants.HAZELCAST_CONFIGURATION);
-        if (hzConfigPath != null) {
-            boolean isHzConfigOnClasspath = this.getClass().getClassLoader().getResource(hzConfigPath) != null;
-            Config hzconfig = isHzConfigOnClasspath
-                    ? new ClasspathXmlConfig(hzConfigPath)
-                    : new FileSystemXmlConfig(hzConfigPath);
-            LOG.info("Starting Hazelcast instance. ConfigurationFile={}", hzconfig);
-            hazelcastInstance = Hazelcast.newHazelcastInstance(hzconfig);
-        } else {
-            LOG.info("Starting Hazelcast instance with default configuration");
-            hazelcastInstance = Hazelcast.newHazelcastInstance();
-        }
-        listenOnHazelCastMsg();
-    }
-
     private void configureKafka(IConfig config) throws Exception {
         String topic = config.getProperty(BrokerConstants.KAFKA_TOPIC);
         Integer threadCounts = Integer.valueOf(config.getProperty(BrokerConstants.THREAD_COUNTS));
         MultiThreadHLConsumer multiThreadHLConsumer = new MultiThreadHLConsumer(topic, this);
         multiThreadHLConsumer.testConsumer(threadCounts);
-    }
-
-    private void listenOnHazelCastMsg() {
-        LOG.info("Subscribing to Hazelcast topic. TopicName={}", "moquette");
-        HazelcastInstance hz = getHazelcastInstance();
-        ITopic<KafkaMsg> topic = hz.getTopic("moquette");
-        topic.addMessageListener(new HazelcastListener(this));
     }
 
     public HazelcastInstance getHazelcastInstance() {
@@ -243,7 +215,7 @@ public class Server {
      * @param clientId the id of the sending server.
      * @throws IllegalStateException if the server is not yet started
      */
-    public void internalPublish(MqttPublishMessage msg, final String clientId) throws IOException {
+    void internalPublish(MqttPublishMessage msg, final String clientId, MessageGUID messageGUID) throws IOException {
         final int messageID = msg.variableHeader().messageId();
         if (!m_initialized) {
             LOG.error("Moquette is not started, internal message cannot be published. CId={}, messageId={}", clientId,
@@ -251,7 +223,7 @@ public class Server {
             throw new IllegalStateException("Can't publish on a server is not yet started");
         }
         LOG.debug("Publishing message. CId={}, messageId={}", clientId, messageID);
-        m_processor.internalPublish(msg, clientId);
+        m_processor.internalPublish(msg, clientId, messageGUID);
     }
 
     public void stopServer() {

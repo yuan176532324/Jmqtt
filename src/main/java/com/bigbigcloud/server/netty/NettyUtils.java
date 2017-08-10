@@ -63,21 +63,6 @@ public final class NettyUtils {
         return (String) channel.attr(NettyUtils.ATTR_KEY_CLIENTID).get();
     }
 
-    static String remoteHostname(Channel channel) {
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
-        return inetSocketAddress.getHostName();
-    }
-
-    static String remoteIp(Channel channel) {
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
-        return inetSocketAddress.getAddress().getHostAddress();
-    }
-
-    static int remotePort(Channel channel) {
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
-        return inetSocketAddress.getPort();
-    }
-
     static String remoteAddress(Channel channel) {
         InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
         return inetSocketAddress.getAddress().getHostAddress() + "(" + inetSocketAddress.getHostName() + "):" + inetSocketAddress.getPort();
