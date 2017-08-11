@@ -16,17 +16,14 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.spi.ClientSession;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Collection;
 import java.util.Queue;
-import java.util.UUID;
 
 class InternalRepublisher {
 

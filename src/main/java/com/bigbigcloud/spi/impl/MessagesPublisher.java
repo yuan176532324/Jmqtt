@@ -16,12 +16,9 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
-import com.bigbigcloud.persistence.redis.MessageStatus;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.persistence.redis.TrackedMessage;
-import com.bigbigcloud.server.ConnectionDescriptor;
 import com.bigbigcloud.spi.ISessionsStore;
 import com.bigbigcloud.spi.ClientSession;
 import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
@@ -33,10 +30,8 @@ import io.netty.handler.codec.mqtt.*;
 import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
@@ -59,7 +54,7 @@ class MessagesPublisher {
         this.subscriptions = subscriptions;
     }
 
-    static MqttPublishMessage notRetainedPublish(String topic, MqttQoS qos, ByteBuf message) {
+    private static MqttPublishMessage notRetainedPublish(String topic, MqttQoS qos, ByteBuf message) {
         return notRetainedPublishWithMessageId(topic, qos, message, 0);
     }
 

@@ -17,21 +17,18 @@
 package com.bigbigcloud.spi.impl;
 
 import com.bigbigcloud.common.model.MessageGUID;
-import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
 import com.bigbigcloud.spi.ClientSession;
+import com.bigbigcloud.spi.ISessionsStore;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.TimeUnit;
-
 import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
-import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
 import static com.bigbigcloud.persistence.redis.MessageStatus.PUB_OFFLINE;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
@@ -39,6 +36,7 @@ class PersistentQueueMessageSender {
 
     private static final Logger LOG = LoggerFactory.getLogger(PersistentQueueMessageSender.class);
     private final ConnectionDescriptorStore connectionDescriptorStore;
+    private ISessionsStore r_sessionsStore;
 
     PersistentQueueMessageSender(ConnectionDescriptorStore connectionDescriptorStore) {
         this.connectionDescriptorStore = connectionDescriptorStore;
@@ -65,7 +63,7 @@ class PersistentQueueMessageSender {
                 LOG.warn("PUBLISH message could not be delivered. It will be stored. MessageId={}, CId={}, topic={}, "
                         + "qos={}, cleanSession={}", messageId, clientId, topicName, qos, false);
                 rBucket.set(new TrackedMessage(PUB_OFFLINE), 7, TimeUnit.DAYS);
-                clientsession.enqueue(ProtocolProcessor.asStoredMessage(pubMessage));
+                clientsession.enqueue(r_sessionsStore.inFlightAck(clientId, messageId));
             } else {
                 LOG.warn("PUBLISH message could not be delivered. It will be discarded. MessageId={}, CId={}, topic={}, " +
                         "qos={}, cleanSession={}", messageId, clientId, topicName, qos, true);
