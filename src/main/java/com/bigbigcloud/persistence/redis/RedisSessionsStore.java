@@ -23,9 +23,7 @@ import com.bigbigcloud.spi.ClientSession;
 import com.bigbigcloud.spi.ISubscriptionsStore;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
-import org.redisson.api.RBucket;
-import org.redisson.api.RMap;
-import org.redisson.api.RedissonClient;
+import org.redisson.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,17 +215,10 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public int nextPacketID(String clientID) {
         LOG.debug("Generating next packet ID CId={}", clientID);
-        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
-        if (inFlightForClient == null) {
-            int nextPacketId = 1;
-            inFlightForClient = new HashSet<>();
-            inFlightForClient.add(nextPacketId);
-            return nextPacketId;
-        }
-
-        int maxId = inFlightForClient.isEmpty() ? 0 : Collections.max(inFlightForClient);
+        RScoredSortedSet<Integer> inFlightForClient = redis.getScoredSortedSet(INFLIGHT_PACKETIDS + clientID);
+        int maxId = inFlightForClient.isEmpty() ? 0 : inFlightForClient.last();
         int nextPacketId = (maxId % 0xFFFF) + 1;
-        inFlightForClient.add(nextPacketId);
+        inFlightForClient.add(new Date().getTime(), nextPacketId);
         LOG.debug("Next packet ID has been generated CId={}, result={}", clientID, nextPacketId);
         return nextPacketId;
     }
@@ -243,7 +234,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         StoredMessage msg = rStore.get();
         rStore.delete();
         // remove from the ids store
-        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
+        RScoredSortedSet<Integer> inFlightForClient = redis.getScoredSortedSet(INFLIGHT_PACKETIDS + clientID);
         if (inFlightForClient != null) {
             inFlightForClient.remove(messageID);
         }
