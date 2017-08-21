@@ -25,7 +25,7 @@ public class HealthCheckHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(HealthCheckHandler.class);
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        LOG.info("health check close!");
+        LOG.debug("health check close!");
         ctx.close();
     }
 
