@@ -47,8 +47,7 @@ class InternalRepublisher {
                 // set the PacketIdentifier only for QoS > 0
                 publishMsg = retainedPublish(storedMsg, packetID);
             }
-
-            this.messageSender.sendPublish(targetSession, publishMsg);
+            this.messageSender.sendPublish(targetSession, publishMsg, storedMsg.getGuid());
         }
     }
 
@@ -64,7 +63,7 @@ class InternalRepublisher {
             if (publishMsg.fixedHeader().qosLevel() != MqttQoS.AT_MOST_ONCE) {
                 publishMsg = notRetainedPublish(pubEvt, messageId);
             }
-            this.messageSender.sendPublish(clientSession, publishMsg);
+            this.messageSender.sendPublish(clientSession, publishMsg, pubEvt.getGuid());
         }
     }
 

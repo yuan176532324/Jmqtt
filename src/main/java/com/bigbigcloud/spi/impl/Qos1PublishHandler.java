@@ -16,6 +16,7 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.IMessagesStore;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
@@ -75,14 +76,14 @@ class Qos1PublishHandler extends QosPublishHandler {
         try {
             if (connectionDescriptors == null) {
                 throw new RuntimeException("Internal bad error, found connectionDescriptors to null while it should " +
-                    "be initialized, somewhere it's overwritten!!");
+                        "be initialized, somewhere it's overwritten!!");
             }
             LOG.debug("clientIDs are {}", connectionDescriptors);
             if (!connectionDescriptors.isConnected(clientId)) {
                 throw new RuntimeException(String.format("Can't find a ConnectionDescriptor for client %s in cache %s",
-                    clientId, connectionDescriptors));
+                        clientId, connectionDescriptors));
             }
-            connectionDescriptors.sendMessage(pubAckMessage, messageID, clientId);
+            connectionDescriptors.sendMessage(pubAckMessage, messageID, clientId, null);
         } catch (Throwable t) {
             LOG.error(null, t);
         }

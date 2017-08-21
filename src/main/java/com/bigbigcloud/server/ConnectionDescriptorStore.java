@@ -16,10 +16,13 @@
 
 package com.bigbigcloud.server;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.connections.IConnectionsManager;
 import com.bigbigcloud.connections.MqttConnectionMetrics;
 import com.bigbigcloud.connections.MqttSession;
 import com.bigbigcloud.connections.MqttSubscription;
+import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.netty.metrics.BytesMetrics;
 import com.bigbigcloud.server.netty.metrics.MessageMetrics;
 import com.bigbigcloud.spi.ClientSession;
@@ -27,14 +30,18 @@ import com.bigbigcloud.spi.ISessionsStore;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import io.netty.handler.codec.mqtt.MqttMessage;
 import io.netty.handler.codec.mqtt.MqttMessageType;
+import io.netty.handler.codec.mqtt.MqttQoS;
+import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
+import static com.bigbigcloud.persistence.redis.MessageStatus.*;
+import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
 public class ConnectionDescriptorStore implements IConnectionsManager {
 
@@ -48,8 +55,9 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
         this.sessionsStore = sessionsStore;
     }
 
-    public boolean sendMessage(MqttMessage message, Integer messageID, String clientID) {
+    public boolean sendMessage(MqttMessage message, Integer messageID, String clientID, MessageGUID messageGUID) {
         final MqttMessageType messageType = message.fixedHeader().messageType();
+        final MqttQoS qos = message.fixedHeader().qosLevel();
         try {
             if (messageID != null) {
                 LOG.info("Sending {} message CId=<{}>, messageId={}", messageType, clientID, messageID);
@@ -72,7 +80,15 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
                 return false;
             }
             descriptor.writeAndFlush(message);
-            LOG.info("msg get is time5:" + new Date().getTime());
+            if (messageGUID != null) {
+                RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + messageGUID.toString());
+                LOG.info(MESSAGE_STATUS + clientID + "_" + messageGUID.toString() + "  XXXXXXX:" + rBucket.get().getMessageStatus().toString());
+                if (qos.equals(AT_MOST_ONCE)) {
+                    rBucket.set(new TrackedMessage(SUCCESS), 1, TimeUnit.DAYS);
+                } else {
+                    rBucket.set(new TrackedMessage(COMPLETED), 1, TimeUnit.DAYS);
+                }
+            }
             return true;
         } catch (Throwable e) {
             String errorMsg = "Unable to send " + messageType + " message. CId=<" + clientID + ">";

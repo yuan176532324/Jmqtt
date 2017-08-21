@@ -16,6 +16,7 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.IMessagesStore;
@@ -28,6 +29,9 @@ import io.netty.channel.Channel;
 import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
@@ -67,6 +71,7 @@ class Qos2PublishHandler extends QosPublishHandler {
         final int messageID = msg.variableHeader().messageId();
 
         StoredMessage toStoreMsg = ProtocolProcessor.asStoredMessage(msg);
+        toStoreMsg.setGuid(new MessageGUID(UUID.randomUUID().toString()));
         toStoreMsg.setClientID(clientID);
         LOG.info("Sending publish message to subscribers CId={}, topic={}, messageId={}", clientID, topic, messageID);
         m_sessionsStore.sessionForClient(clientID).markAsInboundInflight(messageID, toStoreMsg);
@@ -94,13 +99,13 @@ class Qos2PublishHandler extends QosPublishHandler {
         LOG.debug("Sending PUBREC message. CId={}, messageId={}", clientID, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, AT_MOST_ONCE, false, 0);
         MqttMessage pubRecMessage = new MqttMessage(fixedHeader, from(messageID));
-        connectionDescriptors.sendMessage(pubRecMessage, messageID, clientID);
+        connectionDescriptors.sendMessage(pubRecMessage, messageID, clientID, null);
     }
 
     private void sendPubComp(String clientID, int messageID) {
         LOG.debug("Sending PUBCOMP message. CId={}, messageId={}", clientID, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBCOMP, false, AT_MOST_ONCE, false, 0);
         MqttMessage pubCompMessage = new MqttMessage(fixedHeader, from(messageID));
-        connectionDescriptors.sendMessage(pubCompMessage, messageID, clientID);
+        connectionDescriptors.sendMessage(pubCompMessage, messageID, clientID, null);
     }
 }

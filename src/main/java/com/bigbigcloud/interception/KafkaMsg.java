@@ -16,11 +16,12 @@
 
 package com.bigbigcloud.interception;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.interception.messages.InterceptPublishMessage;
 import com.bigbigcloud.spi.impl.Utils;
-
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.UUID;
 
 public class KafkaMsg implements Serializable {
 
@@ -31,6 +32,7 @@ public class KafkaMsg implements Serializable {
     private boolean retained;
     private String clientId;
     private int messageId;
+    public MessageGUID guid;
 
     public KafkaMsg() {
     }
@@ -42,6 +44,15 @@ public class KafkaMsg implements Serializable {
         this.payload = Utils.readBytesAndRewind(msg.getPayload());
         this.retained = msg.isRetainFlag();
         this.messageId = msg.getMessageId();
+        this.guid = new MessageGUID(UUID.randomUUID().toString());
+    }
+
+    public MessageGUID getGuid() {
+        return guid;
+    }
+
+    public void setGuid(MessageGUID guid) {
+        this.guid = guid;
     }
 
     public void setQos(int qos) {

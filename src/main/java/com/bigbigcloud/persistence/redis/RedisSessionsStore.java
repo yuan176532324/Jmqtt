@@ -23,13 +23,14 @@ import com.bigbigcloud.spi.ClientSession;
 import com.bigbigcloud.spi.ISubscriptionsStore;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
-import org.redisson.api.RMap;
-import org.redisson.api.RedissonClient;
+import org.redisson.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+
 import static com.bigbigcloud.BrokerConstants.*;
 
 /**
@@ -44,8 +45,6 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     private RMap<Topic, Subscription> subMap;
     //persistSession
     private RMap<String, PersistentSession> persistSession;
-    //待发送的消息
-    private RMap<Integer, StoredMessage> outboundFlightMessages;
     //第二阶段的消息
     private RMap<Integer, StoredMessage> secondPhaseMessages;
     //全部的sessionKeys
@@ -216,17 +215,10 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public int nextPacketID(String clientID) {
         LOG.debug("Generating next packet ID CId={}", clientID);
-        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
-        if (inFlightForClient == null) {
-            int nextPacketId = 1;
-            inFlightForClient = new HashSet<>();
-            inFlightForClient.add(nextPacketId);
-            return nextPacketId;
-        }
-
-        int maxId = inFlightForClient.isEmpty() ? 0 : Collections.max(inFlightForClient);
+        RScoredSortedSet<Integer> inFlightForClient = redis.getScoredSortedSet(INFLIGHT_PACKETIDS + clientID);
+        int maxId = inFlightForClient.isEmpty() ? 0 : inFlightForClient.last();
         int nextPacketId = (maxId % 0xFFFF) + 1;
-        inFlightForClient.add(nextPacketId);
+        inFlightForClient.add(new Date().getTime(), nextPacketId);
         LOG.debug("Next packet ID has been generated CId={}, result={}", clientID, nextPacketId);
         return nextPacketId;
     }
@@ -234,15 +226,15 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public StoredMessage inFlightAck(String clientID, int messageID) {
         LOG.debug("Acknowledging inflight message CId={}, messageId={}", clientID, messageID);
-        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
-        if (outboundFlightMessages == null) {
+        RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
+        if (!rStore.isExists()) {
             LOG.warn("Can't find the inFlight record for client <{}>", clientID);
             return null;
         }
-        StoredMessage msg = outboundFlightMessages.remove(messageID);
-
+        StoredMessage msg = rStore.get();
+        rStore.delete();
         // remove from the ids store
-        Set<Integer> inFlightForClient = redis.getSet(INFLIGHT_PACKETIDS + clientID);
+        RScoredSortedSet<Integer> inFlightForClient = redis.getScoredSortedSet(INFLIGHT_PACKETIDS + clientID);
         if (inFlightForClient != null) {
             inFlightForClient.remove(messageID);
         }
@@ -251,9 +243,10 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
 
     @Override
     public void inFlight(String clientID, int messageID, StoredMessage msg) {
-        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
-        outboundFlightMessages.put(messageID, msg);
-        outboundFlightMessages.expire(7, TimeUnit.DAYS);
+        RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 1, TimeUnit.DAYS);
+        RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
+        rStore.set(msg, 1, TimeUnit.HOURS);
     }
 
     @Override
@@ -271,63 +264,44 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID, StoredMessage msg) {
         LOG.debug("Moving inflight message to 2nd phase ack state. ClientId={}, messageID={}", clientID, messageID);
-        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
-        if (secondPhaseMessages == null) {
-            String error = String.format("Can't find the inFlight record for client <%s> during the second phase of " +
-                    "QoS2 pub", clientID);
-            LOG.warn(error);
-        } else {
-            secondPhaseMessages.put(messageID, msg);
-            secondPhaseMessages.expire(7, TimeUnit.DAYS);
-        }
+        RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_SEC), 1, TimeUnit.DAYS);
+        RBucket<StoredMessage> rStore = redis.getBucket(SECOND_FLIGHT + clientID + "_" + msg.getGuid().toString());
+        rStore.set(msg, 1, TimeUnit.DAYS);
     }
 
     @Override
     public StoredMessage secondPhaseAcknowledged(String clientID, int messageID) {
         LOG.debug("Processing second phase ACK CId={}, messageId={}", clientID, messageID);
-        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
-        if (secondPhaseMessages == null) {
+        RBucket<StoredMessage> rStore = redis.getBucket(SECOND_FLIGHT + clientID + "_" + messageID);
+        if (!rStore.isExists()) {
             String error = String.format("Can't find the inFlight record for client <%s> during the second phase " +
                     "acking of QoS2 pub", clientID);
-            LOG.error(error);
-            throw new RuntimeException(error);
+            LOG.warn(error);
         }
-        return secondPhaseMessages.remove(messageID);
+        StoredMessage storedMessage = rStore.get();
+        rStore.delete();
+        return storedMessage;
     }
 
     @Override
     public int getInflightMessagesNo(String clientID) {
-        int totalInflight = 0;
-        RMap<Integer, StoredMessage> inflightPerClient = redis.getMap(inboundMessageId2MessagesMapName(clientID));
-        if (inflightPerClient != null) {
-            totalInflight += inflightPerClient.size();
-        }
-
-        secondPhaseMessages = redis.getMap(SECOND_PHASE + clientID);
-        if (secondPhaseMessages != null) {
-            totalInflight += secondPhaseMessages.size();
-        }
-
-        outboundFlightMessages = redis.getMap(OUTBOUND_FLIGHT + clientID);
-        if (outboundFlightMessages != null) {
-            totalInflight += outboundFlightMessages.size();
-        }
-
-        return totalInflight;
+        return 0;
     }
 
     @Override
     public StoredMessage inboundInflight(String clientID, int messageID) {
-        LOG.debug("Mapping inbound message ID to GUID CId={}, messageId={}", clientID, messageID);
-        RMap<Integer, StoredMessage> messageIdToGuid = redis.getMap(inboundMessageId2MessagesMapName(clientID));
-        return messageIdToGuid.get(messageID);
+        LOG.debug("Mapping message ID to GUID CId={}, messageId={}", clientID, messageID);
+        RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
+        return rStore.get();
     }
 
     @Override
     public void markAsInboundInflight(String clientID, int messageID, StoredMessage msg) {
-        RMap<Integer, StoredMessage> messageIdToGuid = redis.getMap(inboundMessageId2MessagesMapName(clientID));
-        messageIdToGuid.put(messageID, msg);
-        messageIdToGuid.expire(7, TimeUnit.DAYS);
+        RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 1, TimeUnit.DAYS);
+        RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
+        rStore.set(msg, 1, TimeUnit.DAYS);
     }
 
     @Override
@@ -351,6 +325,7 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         persistSession = redis.getMap(SESSION + clientID);
         PersistentSession persistentSession = persistSession.get(clientID);
         persistentSession.setActive(false);
+        LOG.info("set persistentSession:" + persistentSession.toString());
         persistSession.put(clientID, persistentSession);
     }
 

@@ -26,6 +26,8 @@ import kafka.consumer.KafkaStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
+
 
 final class ConsumerThread implements Runnable {
 
@@ -49,8 +51,8 @@ final class ConsumerThread implements Runnable {
             KafkaMsg kafkaMsg = kafkaMessageConverter.fromBytes(bytes);
 
             try {
-                LOG.info("{} received from kafka for topic {} message: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
-                        new String(kafkaMsg.getPayload()));
+                LOG.info("{} received from kafka for topic {} message: {} timestamp: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
+                        new String(kafkaMsg.getPayload()), new Date().getTime());
                 // TODO pass forward this information in somehow publishMessage.setLocal(false);
 
                 MqttQoS qos = MqttQoS.valueOf(kafkaMsg.getQos());
@@ -58,7 +60,7 @@ final class ConsumerThread implements Runnable {
                 MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(kafkaMsg.getTopic(), 0);
                 ByteBuf payload = Unpooled.wrappedBuffer(kafkaMsg.getPayload());
                 MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
-                server.internalPublish(publishMessage, kafkaMsg.getClientId());
+                server.internalPublish(publishMessage, kafkaMsg.getClientId(), kafkaMsg.getGuid());
             } catch (Exception ex) {
                 LOG.error("error polling kafka msg queue", ex);
             }
