@@ -211,7 +211,7 @@ public class ClientSession {
      * @param message the message to enqueue.
      */
     public void enqueue(StoredMessage message) {
-        RedissonUtil.getRedisson().getQueue(this.clientID).expire(7, TimeUnit.DAYS);
+        RedissonUtil.getRedisson().getQueue(this.clientID).expire(3, TimeUnit.DAYS);
         this.m_sessionsStore.queue(this.clientID).add(message);
     }
 

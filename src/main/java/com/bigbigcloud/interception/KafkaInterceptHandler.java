@@ -37,6 +37,7 @@ import org.redisson.api.RMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
@@ -66,7 +67,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
     public void onPublish(InterceptPublishMessage msg) {
         ByteBuf payload = msg.getPayload();
         byte[] payloadContent = Utils.readBytesAndRewind(payload);
-        LOG.info("{} publish on {} message: {}", msg.getClientID(), msg.getTopicName(), new String(payloadContent));
+        LOG.info("{} publish on {} message: {} timestamp: {}", msg.getClientID(), msg.getTopicName(), new String(payloadContent), new Date().getTime());
         KafkaMsg mqttMessage = new KafkaMsg(msg);
         ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, mqttMessage);
         String topicName = getTopicName(mqttMessage.getTopic());
@@ -84,7 +85,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
                     RMap<Integer, StoredMessage> messageIdToGuid = RedissonUtil.getRedisson().getMap(INBOUND_INFLIGHT + mqttMessage.getClientId());
                     LOG.info("messageId is: {}", mqttMessage.getMessageId());
                     StoredMessage storedMessage = messageIdToGuid.get(mqttMessage.getMessageId());
-                    if (storedMessage.isRetained()) {
+                    if (storedMessage != null && storedMessage.isRetained()) {
                         if (storedMessage.getPayload().readableBytes() == 0) {
                             m_retainedStore.remove(topic);
                         } else {

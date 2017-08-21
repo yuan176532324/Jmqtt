@@ -84,9 +84,9 @@ public class ConnectionDescriptorStore implements IConnectionsManager {
                 RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + messageGUID.toString());
                 LOG.info(MESSAGE_STATUS + clientID + "_" + messageGUID.toString() + "  XXXXXXX:" + rBucket.get().getMessageStatus().toString());
                 if (qos.equals(AT_MOST_ONCE)) {
-                    rBucket.set(new TrackedMessage(SUCCESS), 7, TimeUnit.DAYS);
+                    rBucket.set(new TrackedMessage(SUCCESS), 1, TimeUnit.DAYS);
                 } else {
-                    rBucket.set(new TrackedMessage(COMPLETED), 7, TimeUnit.DAYS);
+                    rBucket.set(new TrackedMessage(COMPLETED), 1, TimeUnit.DAYS);
                 }
             }
             return true;

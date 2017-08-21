@@ -244,9 +244,9 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public void inFlight(String clientID, int messageID, StoredMessage msg) {
         RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
-        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 7, TimeUnit.DAYS);
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 1, TimeUnit.DAYS);
         RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
-        rStore.set(msg, 7, TimeUnit.DAYS);
+        rStore.set(msg, 1, TimeUnit.HOURS);
     }
 
     @Override
@@ -265,9 +265,9 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     public void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID, StoredMessage msg) {
         LOG.debug("Moving inflight message to 2nd phase ack state. ClientId={}, messageID={}", clientID, messageID);
         RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
-        rBucket.set(new TrackedMessage(MessageStatus.SENT_SEC), 7, TimeUnit.DAYS);
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_SEC), 1, TimeUnit.DAYS);
         RBucket<StoredMessage> rStore = redis.getBucket(SECOND_FLIGHT + clientID + "_" + msg.getGuid().toString());
-        rStore.set(msg, 7, TimeUnit.DAYS);
+        rStore.set(msg, 1, TimeUnit.DAYS);
     }
 
     @Override
@@ -299,9 +299,9 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
     @Override
     public void markAsInboundInflight(String clientID, int messageID, StoredMessage msg) {
         RBucket<TrackedMessage> rBucket = redis.getBucket(MESSAGE_STATUS + clientID + "_" + msg.getGuid().toString());
-        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 7, TimeUnit.DAYS);
+        rBucket.set(new TrackedMessage(MessageStatus.SENT_FIR), 1, TimeUnit.DAYS);
         RBucket<StoredMessage> rStore = redis.getBucket(IN_FLIGHT + clientID + "_" + messageID);
-        rStore.set(msg, 7, TimeUnit.DAYS);
+        rStore.set(msg, 1, TimeUnit.DAYS);
     }
 
     @Override

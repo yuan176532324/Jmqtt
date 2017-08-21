@@ -30,6 +30,7 @@ import io.netty.handler.codec.mqtt.*;
 import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -71,15 +72,17 @@ class MessagesPublisher {
         final MqttQoS publishingQos = pubMsg.getQos();
         final ByteBuf origPayload = pubMsg.getPayload();
         //标记 发布者+消息 状态为READY_TO_PUB
-        RBucket<TrackedMessage> rBucket_pub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + pubMsg.getClientID() + "_" + pubMsg.getGuid().toString());
-        rBucket_pub.set(new TrackedMessage(READY_TO_PUB), 7, TimeUnit.DAYS);
+        if (pubMsg.getGuid() != null) {
+            RBucket<TrackedMessage> rBucket_pub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + pubMsg.getClientID() + "_" + pubMsg.getMessageId() + "_" + pubMsg.getGuid().toString());
+            rBucket_pub.set(new TrackedMessage(READY_TO_PUB), 1, TimeUnit.DAYS);
+        }
         //为订阅者分发消息
         for (final Subscription sub : topicMatchingSubscriptions) {
             RBucket<TrackedMessage> rBucket_sub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + sub.getClientId() + "_" + pubMsg.getGuid().toString());
             RBucket<StoredMessage> rStrore = RedissonUtil.getRedisson().getBucket(OFFLINE_MESSAGES + sub.getClientId() + "_" + pubMsg.getGuid().toString());
             //初始化 订阅者+消息 状态为PUB_TO_SUBER
             if (!rBucket_sub.isExists()) {
-                rBucket_sub.set(new TrackedMessage(PUB_TO_SUBER), 7, TimeUnit.DAYS);
+                rBucket_sub.set(new TrackedMessage(PUB_TO_SUBER), 1, TimeUnit.DAYS);
             }
 
             MqttQoS qos = ProtocolProcessor.lowerQosToTheSubscriptionDesired(sub, publishingQos);
@@ -110,7 +113,7 @@ class MessagesPublisher {
                 this.messageSender.sendPublish(targetSession, publishMsg, pubMsg.getGuid());
             } else if (!isOnline && !rBucket_sub.get().getMessageStatus().equals(COMPLETED) && !rBucket_sub.get().getMessageStatus().equals(PUB_OFFLINE)) {
                 if (!targetSession.isCleanSession()) {
-                    rBucket_sub.set(new TrackedMessage(PUB_OFFLINE), 7, TimeUnit.DAYS);
+                    rBucket_sub.set(new TrackedMessage(PUB_OFFLINE), 1, TimeUnit.DAYS);
                     targetSession.enqueue(pubMsg);
                 }
             }

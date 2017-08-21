@@ -62,7 +62,7 @@ class PersistentQueueMessageSender {
             if (qos != AT_MOST_ONCE && !clientsession.isCleanSession()) {
                 LOG.warn("PUBLISH message could not be delivered. It will be stored. MessageId={}, CId={}, topic={}, "
                         + "qos={}, cleanSession={}", messageId, clientId, topicName, qos, false);
-                rBucket.set(new TrackedMessage(PUB_OFFLINE), 7, TimeUnit.DAYS);
+                rBucket.set(new TrackedMessage(PUB_OFFLINE), 1, TimeUnit.DAYS);
                 clientsession.enqueue(r_sessionsStore.inFlightAck(clientId, messageId));
             } else {
                 LOG.warn("PUBLISH message could not be delivered. It will be discarded. MessageId={}, CId={}, topic={}, " +
