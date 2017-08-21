@@ -43,7 +43,7 @@
         <appender-ref ref="ASYNC"/>
     </logger>
 
-    <logger name="com.bigbigcloud" level="WARN" additivity="false">
+    <logger name="com.bigbigcloud" level="INFO" additivity="false">
         <appender-ref ref="ASYNC"/>
     </logger>
 
