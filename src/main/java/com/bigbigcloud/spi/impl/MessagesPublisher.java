@@ -16,6 +16,7 @@
 
 package com.bigbigcloud.spi.impl;
 
+import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.persistence.redis.TrackedMessage;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
@@ -78,19 +80,21 @@ class MessagesPublisher {
         }
         //为订阅者分发消息
         for (final Subscription sub : topicMatchingSubscriptions) {
+            if (pubMsg.getGuid() == null) {
+                pubMsg.setGuid(new MessageGUID(UUID.randomUUID().toString()));
+            }
+            LOG.info("pub msg clientid is :{} ,guid is:{}", sub.getClientId(), pubMsg.getGuid());
             RBucket<TrackedMessage> rBucket_sub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + sub.getClientId() + "_" + pubMsg.getGuid().toString());
-            RBucket<StoredMessage> rStrore = RedissonUtil.getRedisson().getBucket(OFFLINE_MESSAGES + sub.getClientId() + "_" + pubMsg.getGuid().toString());
             //初始化 订阅者+消息 状态为PUB_TO_SUBER
             if (!rBucket_sub.isExists()) {
                 rBucket_sub.set(new TrackedMessage(PUB_TO_SUBER), 1, TimeUnit.DAYS);
             }
-
             MqttQoS qos = ProtocolProcessor.lowerQosToTheSubscriptionDesired(sub, publishingQos);
-            ClientSession targetSession = m_sessionsStore.sessionForClient(sub.getClientId());
             //该连接是否在本机
             boolean targetIsActive = this.connectionDescriptors.isConnected(sub.getClientId());
             //该连接是否在线
             boolean isOnline = m_sessionsStore.getSessionStatus(sub.getClientId());
+            ClientSession targetSession = m_sessionsStore.sessionForClient(sub.getClientId());
 //TODO move all this logic into messageSender, which puts into the flightZone only the messages that pull out of the queue.
 
             LOG.info("msg state is :" + rBucket_sub.get().getMessageStatus());

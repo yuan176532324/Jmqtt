@@ -31,13 +31,19 @@ public class KafkaMsg implements Serializable {
     private String topic;
     private boolean retained;
     private String clientId;
-    private int messageId;
-    public MessageGUID guid;
+    private int messageId = 0;
+    private MessageGUID guid;
+    private String sDeviceGuid;
+    private String sAppId;
+    private String sUserId;
+    private String sProductKey;
+    private int source;//dh/mqtt 0/1
+    private int type;//cmd/ntf 0/1
 
     public KafkaMsg() {
     }
 
-    public KafkaMsg(InterceptPublishMessage msg) {
+    KafkaMsg(InterceptPublishMessage msg) {
         this.clientId = msg.getClientID();
         this.topic = msg.getTopicName();
         this.qos = msg.getQos().value();
@@ -45,6 +51,55 @@ public class KafkaMsg implements Serializable {
         this.retained = msg.isRetainFlag();
         this.messageId = msg.getMessageId();
         this.guid = new MessageGUID(UUID.randomUUID().toString());
+        this.source = 1;
+    }
+
+    public String getsDeviceGuid() {
+        return sDeviceGuid;
+    }
+
+    public void setsDeviceGuid(String sDeviceGuid) {
+        this.sDeviceGuid = sDeviceGuid;
+    }
+
+    public String getsAppId() {
+        return sAppId;
+    }
+
+    public void setsAppId(String sAppId) {
+        this.sAppId = sAppId;
+    }
+
+    public String getsUserId() {
+        return sUserId;
+    }
+
+    public void setsUserId(String sUserId) {
+        this.sUserId = sUserId;
+    }
+
+    public String getsProductKey() {
+        return sProductKey;
+    }
+
+    public void setsProductKey(String sProductKey) {
+        this.sProductKey = sProductKey;
+    }
+
+    public int getSource() {
+        return source;
+    }
+
+    public void setSource(int source) {
+        this.source = source;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
     }
 
     public MessageGUID getGuid() {
@@ -112,6 +167,13 @@ public class KafkaMsg implements Serializable {
                 ", retained=" + retained +
                 ", clientId='" + clientId + '\'' +
                 ", messageId=" + messageId +
+                ", guid=" + guid +
+                ", sDeviceGuid='" + sDeviceGuid + '\'' +
+                ", sAppId='" + sAppId + '\'' +
+                ", sUserId='" + sUserId + '\'' +
+                ", sProductKey='" + sProductKey + '\'' +
+                ", source=" + source +
+                ", type=" + type +
                 '}';
     }
 }
