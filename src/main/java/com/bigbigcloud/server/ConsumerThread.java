@@ -57,7 +57,7 @@ final class ConsumerThread implements Runnable {
 
                 MqttQoS qos = MqttQoS.valueOf(kafkaMsg.getQos());
                 MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, qos, false, 0);
-                MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(kafkaMsg.getTopic(), 0);
+                MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(kafkaMsg.getTopic(), kafkaMsg.getMessageId());
                 ByteBuf payload = Unpooled.wrappedBuffer(kafkaMsg.getPayload());
                 MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
                 server.internalPublish(publishMessage, kafkaMsg.getClientId(), kafkaMsg.getGuid());

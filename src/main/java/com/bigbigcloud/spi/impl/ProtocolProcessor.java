@@ -551,6 +551,7 @@ public class ProtocolProcessor {
 
         StoredMessage toStoreMsg = asStoredMessage(msg);
         toStoreMsg.setGuid(messageGUID);
+        toStoreMsg.setMessageId(msg.variableHeader().messageId());
         if (clientId == null || clientId.isEmpty()) {
             toStoreMsg.setClientID("BROKER_SELF");
         } else {
