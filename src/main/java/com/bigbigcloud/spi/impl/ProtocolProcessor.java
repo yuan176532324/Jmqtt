@@ -264,10 +264,10 @@ public class ProtocolProcessor {
                     payload.userName());
         }
 
-        if (!login(channel, msg, clientId)) {
-            channel.close();
-            return;
-        }
+//        if (!login(channel, msg, clientId)) {
+//            channel.close();
+//            return;
+//        }
         //设置黑名单
         if (m_sessionsStore.isInBlackList(clientId)) {
             channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
@@ -623,8 +623,10 @@ public class ProtocolProcessor {
         // once received the PUBCOMP then remove the message from the temp memory
         ClientSession targetSession = m_sessionsStore.sessionForClient(clientID);
         StoredMessage inflightMsg = targetSession.secondPhaseAcknowledged(messageID);
-        RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + messageID + "_" + inflightMsg.getGuid().toString());
-        rBucket.set(new TrackedMessage(COMPLETED));
+        if (inflightMsg.getGuid() != null) {
+            RBucket<TrackedMessage> rBucket = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + clientID + "_" + messageID + "_" + inflightMsg.getGuid().toString());
+            rBucket.set(new TrackedMessage(COMPLETED));
+        }
         String username = NettyUtils.userName(channel);
         String topic = inflightMsg.getTopic();
         m_interceptor.notifyMessageAcknowledged(new InterceptAcknowledgedMessage(inflightMsg, topic, username, messageID));
@@ -737,7 +739,7 @@ public class ProtocolProcessor {
 
         String username = NettyUtils.userName(channel);
         m_sessionsStore.offlineSession(clientID);
-        m_interceptor.notifyClientConnectionLost(clientID, username);
+        m_interceptor.notifyClientConnectionLost(clientID, username, channel.remoteAddress().toString());
     }
 
     /**
