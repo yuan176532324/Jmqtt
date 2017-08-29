@@ -16,12 +16,10 @@
 
 package com.bigbigcloud.interception;
 
-import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.interception.messages.InterceptConnectionLostMessage;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.config.KafkaConfig;
-import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import com.bigbigcloud.BrokerConstants;
 import com.bigbigcloud.interception.messages.InterceptConnectMessage;
 import com.bigbigcloud.interception.messages.InterceptPublishMessage;
@@ -35,11 +33,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Date;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-
 import static com.bigbigcloud.BrokerConstants.*;
 import static com.bigbigcloud.persistence.redis.MessageStatus.PUB_TO_MQ;
 
@@ -48,8 +43,6 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaInterceptHandler.class);
     private static final Producer<String, KafkaMsg> producer4p2p;
     private static final KafkaConfig kafkaConfig4p2p = new KafkaConfig(CONFIG_LOCATION + KAFKA_CONFIG_FOR_P2P);
-    private static final KafkaConfig kafkaConfig4conn = new KafkaConfig(CONFIG_LOCATION + KAFKA_CONFIG_FOR_CONN);
-    private ConcurrentMap<Topic, StoredMessage> m_retainedStore = RedissonUtil.getRedisson().getMap(RETAINED_STORE);
 
     static {
         producer4p2p = new KafkaProducer<String, KafkaMsg>(kafkaConfig4p2p.load());
@@ -101,23 +94,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
             String[] strs = msg.getClientID().split(":");
             if (strs.length >= 3) {
                 String on = "$SYS/presence/connected/" + strs[2];
-                KafkaMsg kafkaMsg = new KafkaMsg();
-                kafkaMsg.setClientId(msg.getClientID());
-                kafkaMsg.setsProductKey(strs[1]);
-                kafkaMsg.setsDeviceGuid(strs[2]);
-                kafkaMsg.setTopic(on);
-                kafkaMsg.setQos(0);
-                kafkaMsg.setSource(1);
-                kafkaMsg.setType(2);
-                kafkaMsg.setTimestamp(System.currentTimeMillis());
-                DeviceConnMsg deviceConnMsg = new DeviceConnMsg();
-                deviceConnMsg.setType(1);
-                deviceConnMsg.setTs(System.currentTimeMillis());
-                deviceConnMsg.setIp(msg.getIp());
-                kafkaMsg.setPayload(new Gson().toJson(deviceConnMsg).getBytes());
-                //$SYS/presence/connected/{deviceGuid}
-                ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg);
-                producer4p2p.send(record);
+                connMsg(msg.getClientID(), strs[1], strs[2], msg.getIp(), 1, on);
             }
         }
     }
@@ -128,23 +105,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
             String[] strs = msg.getClientID().split(":");
             if (strs.length >= 3) {
                 String off = "$SYS/presence/disconnected/" + strs[2];
-                KafkaMsg kafkaMsg = new KafkaMsg();
-                kafkaMsg.setClientId(msg.getClientID());
-                kafkaMsg.setsProductKey(strs[1]);
-                kafkaMsg.setsDeviceGuid(strs[2]);
-                kafkaMsg.setTopic(off);
-                kafkaMsg.setQos(0);
-                kafkaMsg.setSource(1);
-                kafkaMsg.setType(2);
-                kafkaMsg.setTimestamp(System.currentTimeMillis());
-                DeviceConnMsg deviceConnMsg = new DeviceConnMsg();
-                deviceConnMsg.setType(0);
-                deviceConnMsg.setTs(System.currentTimeMillis());
-                deviceConnMsg.setIp(msg.getIp());
-                kafkaMsg.setPayload(new Gson().toJson(deviceConnMsg).getBytes());
-                //$SYS/presence/disconnected/{deviceGuid}
-                ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg);
-                producer4p2p.send(record);
+                connMsg(msg.getClientID(), strs[1], strs[2], msg.getIp(), 0, off);
             }
         }
     }
@@ -155,24 +116,27 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
             String[] strs = msg.getClientID().split(":");
             if (strs.length >= 3) {
                 String off = "$SYS/presence/disconnected/" + strs[2];
-                KafkaMsg kafkaMsg = new KafkaMsg();
-                kafkaMsg.setClientId(msg.getClientID());
-                kafkaMsg.setsProductKey(strs[1]);
-                kafkaMsg.setsDeviceGuid(strs[2]);
-                kafkaMsg.setTopic(off);
-                kafkaMsg.setQos(0);
-                kafkaMsg.setSource(1);
-                kafkaMsg.setType(2);
-                kafkaMsg.setTimestamp(System.currentTimeMillis());
-                DeviceConnMsg deviceConnMsg = new DeviceConnMsg();
-                deviceConnMsg.setType(0);
-                deviceConnMsg.setTs(System.currentTimeMillis());
-                deviceConnMsg.setIp(msg.getIp());
-                kafkaMsg.setPayload(new Gson().toJson(deviceConnMsg).getBytes());
-                //$SYS/presence/disconnected/{deviceGuid}
-                ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg);
-                producer4p2p.send(record);
+                connMsg(msg.getClientID(), strs[1], strs[2], msg.getIp(), 0, off);
             }
         }
+    }
+
+    private void connMsg(String clientId, String proKey, String guid, String ip, Integer type, String message) {
+        KafkaMsg kafkaMsg = new KafkaMsg();
+        kafkaMsg.setClientId(clientId);
+        kafkaMsg.setsProductKey(proKey);
+        kafkaMsg.setsDeviceGuid(guid);
+        kafkaMsg.setTopic(message);
+        kafkaMsg.setQos(0);
+        kafkaMsg.setSource(1);
+        kafkaMsg.setType(2);
+        kafkaMsg.setTimestamp(System.currentTimeMillis());
+        DeviceConnMsg deviceConnMsg = new DeviceConnMsg();
+        deviceConnMsg.setType(type);
+        deviceConnMsg.setTs(System.currentTimeMillis());
+        deviceConnMsg.setIp(ip);
+        kafkaMsg.setPayload(new Gson().toJson(deviceConnMsg).getBytes());
+        ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg);
+        producer4p2p.send(record);
     }
 }
