@@ -20,10 +20,12 @@ public class InterceptConnectionLostMessage implements InterceptMessage {
 
     private final String clientID;
     private final String username;
+    private final String ip;
 
-    public InterceptConnectionLostMessage(String clientID, String username) {
+    public InterceptConnectionLostMessage(String clientID, String username, String ip) {
         this.clientID = clientID;
         this.username = username;
+        this.ip = ip;
     }
 
     public String getClientID() {
@@ -32,5 +34,9 @@ public class InterceptConnectionLostMessage implements InterceptMessage {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getIp() {
+        return ip;
     }
 }

@@ -136,7 +136,7 @@ final class BrokerInterceptor implements Interceptor {
     }
 
     @Override
-    public void notifyClientConnectionLost(final String clientID, final String username) {
+    public void notifyClientConnectionLost(final String clientID, final String username, final String ip) {
         for (final InterceptHandler handler : this.handlers.get(InterceptConnectionLostMessage.class)) {
             LOG.debug("Notifying unexpected MQTT client disconnection to interceptor CId={}, username={}, " +
                     "interceptorId={}", clientID, username, handler.getID());
@@ -144,7 +144,7 @@ final class BrokerInterceptor implements Interceptor {
 
                 @Override
                 public void run() {
-                    handler.onConnectionLost(new InterceptConnectionLostMessage(clientID, username));
+                    handler.onConnectionLost(new InterceptConnectionLostMessage(clientID, username, ip));
                 }
             });
         }

@@ -26,19 +26,20 @@ import java.util.UUID;
 public class KafkaMsg implements Serializable {
 
     private static final long serialVersionUID = -1431584750134928273L;
-    private int qos;
+    private Integer qos;
     private byte[] payload;
     private String topic;
-    private boolean retained;
+    private Boolean retained;
     private String clientId;
-    private int messageId = 0;
+    private Integer messageId = 0;
     private MessageGUID guid;
     private String sDeviceGuid;
     private String sAppId;
     private String sUserId;
     private String sProductKey;
-    private int source;//dh/mqtt 0/1
-    private int type;//cmd/ntf 0/1
+    private Integer source;//dh/mqtt 0/1
+    private Integer type;//cmd/ntf/sys/unknown 0/1/2/-1
+    private Long timestamp;
 
     public KafkaMsg() {
     }
@@ -52,6 +53,16 @@ public class KafkaMsg implements Serializable {
         this.messageId = msg.getMessageId();
         this.guid = new MessageGUID(UUID.randomUUID().toString());
         this.source = 1;
+        this.timestamp = System.currentTimeMillis();
+    }
+
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
     }
 
     public String getsDeviceGuid() {
