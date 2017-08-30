@@ -4,7 +4,7 @@
 
     <artifactId>mqtt-broker</artifactId>
     <groupId>com.bigbigcloud</groupId>
-    <version>0.9.37.4</version>
+    <version>0.9.38.0</version>
     <packaging>jar</packaging>
     <name>mqtt - broker</name>
 
