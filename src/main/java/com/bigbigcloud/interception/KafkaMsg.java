@@ -21,6 +21,7 @@ import com.bigbigcloud.interception.messages.InterceptPublishMessage;
 import com.bigbigcloud.spi.impl.Utils;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.UUID;
 
 public class KafkaMsg implements Serializable {
@@ -39,7 +40,7 @@ public class KafkaMsg implements Serializable {
     private String sProductKey;
     private Integer source;//dh/mqtt 0/1
     private Integer type;//cmd/ntf/sys/unknown 0/1/2/-1
-    private Long timestamp;
+    private Date timestamp;
 
     public KafkaMsg() {
     }
@@ -53,15 +54,14 @@ public class KafkaMsg implements Serializable {
         this.messageId = msg.getMessageId();
         this.guid = new MessageGUID(UUID.randomUUID().toString());
         this.source = 1;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = new Date();
     }
 
-
-    public long getTimestamp() {
+    public Date getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(Date timestamp) {
         this.timestamp = timestamp;
     }
 

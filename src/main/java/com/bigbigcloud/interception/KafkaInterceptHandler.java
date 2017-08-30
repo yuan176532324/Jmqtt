@@ -130,7 +130,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
         kafkaMsg.setQos(0);
         kafkaMsg.setSource(1);
         kafkaMsg.setType(2);
-        kafkaMsg.setTimestamp(System.currentTimeMillis());
+        kafkaMsg.setTimestamp(new Date());
         DeviceConnMsg deviceConnMsg = new DeviceConnMsg();
         deviceConnMsg.setType(type);
         deviceConnMsg.setTs(System.currentTimeMillis());
