@@ -26,7 +26,7 @@ import java.util.UUID;
 public class KafkaMsg implements Serializable {
 
     private static final long serialVersionUID = -1431584750134928273L;
-    private Integer qos;
+    private Integer qos = 0;
     private byte[] payload;
     private String topic;
     private Boolean retained;
