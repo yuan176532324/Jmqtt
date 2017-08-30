@@ -264,10 +264,10 @@ public class ProtocolProcessor {
                     payload.userName());
         }
 
-//        if (!login(channel, msg, clientId)) {
-//            channel.close();
-//            return;
-//        }
+        if (!login(channel, msg, clientId)) {
+            channel.close();
+            return;
+        }
         //设置黑名单
         if (m_sessionsStore.isInBlackList(clientId)) {
             channel.writeAndFlush(connAck(CONNECTION_REFUSED_NOT_AUTHORIZED));
