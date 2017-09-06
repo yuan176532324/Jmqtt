@@ -92,7 +92,7 @@ public final class BrokerConstants {
     public static final String SESSION = "session:";
     public static final String SECOND_PHASE = "secondPhase:";
     public static final String DH_PATH = "devicehivePath";
-    public static final String DH_PATH_1 = "devicehivePath1";
+    public static final String DH_PATH_1 = "devicehivePathForCheck";
     public static final String APPHUB_PATH = "apphubPath";
     public static final String MESSAGE_STATUS = "msgStatus_";
     public static final String OFFLINE_MESSAGES = "offlineMsg_";
