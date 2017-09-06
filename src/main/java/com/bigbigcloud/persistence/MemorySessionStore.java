@@ -347,4 +347,18 @@ public class MemorySessionStore implements ISessionsStore, ISubscriptionsStore {
         //sessions.remove(clientID);
     }
 
+    @Override
+    public void markPubTime(String clientID) {
+    }
+
+    @Override
+    public boolean canPub(String clientID) {
+        return false;
+    }
+
+    @Override
+    public int getSubNo(String clientID) {
+        return 0;
+    }
+
 }

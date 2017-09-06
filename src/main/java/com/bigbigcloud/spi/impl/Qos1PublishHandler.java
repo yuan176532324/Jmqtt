@@ -16,10 +16,9 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.MessageGUID;
+import com.bigbigcloud.server.ConnectionDescriptorStore;
 import com.bigbigcloud.server.netty.NettyUtils;
 import com.bigbigcloud.spi.IMessagesStore;
-import com.bigbigcloud.server.ConnectionDescriptorStore;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import com.bigbigcloud.spi.security.IAuthorizator;
 import io.netty.channel.Channel;
@@ -56,11 +55,6 @@ class Qos1PublishHandler extends QosPublishHandler {
         final Topic topic = new Topic(msg.variableHeader().topicName());
         String clientID = NettyUtils.clientID(channel);
         String username = NettyUtils.userName(channel);
-        if (!m_authorizator.canWrite(topic, username, clientID)) {
-            LOG.error("MQTT client is not authorized to publish on topic. CId={}, topic={}", clientID, topic);
-            return;
-        }
-
         final int messageID = msg.variableHeader().messageId();
 
         sendPubAck(clientID, messageID);

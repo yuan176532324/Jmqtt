@@ -34,7 +34,6 @@ import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import com.bigbigcloud.spi.security.IAuthorizator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -133,7 +132,7 @@ public class ProtocolProcessorBootstrapper {
                     LOG.error("Unable to parse ACL file. path=" + aclFilePath, pex);
                 }
             } else {
-                authorizator = new PermitAllAuthorizator();
+                authorizator = new AuthorizationsForBBC(props);
             }
             LOG.info("An {} authorizator instance will be used", authorizator.getClass().getName());
         }
