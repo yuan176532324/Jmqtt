@@ -92,11 +92,14 @@ public final class BrokerConstants {
     public static final String SESSION = "session:";
     public static final String SECOND_PHASE = "secondPhase:";
     public static final String DH_PATH = "devicehivePath";
+    public static final String DH_PATH_1 = "devicehivePathForCheck";
     public static final String APPHUB_PATH = "apphubPath";
     public static final String MESSAGE_STATUS = "msgStatus_";
     public static final String OFFLINE_MESSAGES = "offlineMsg_";
     public static final String IN_FLIGHT = "inFlight_";
     public static final String SECOND_FLIGHT = "secFlight_";
+    public static final long TIME_INTERVAL = 500;
+    public static final String APP_ID = "mqtt_broker";
     private BrokerConstants() {
     }
 }

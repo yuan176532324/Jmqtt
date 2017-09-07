@@ -136,7 +136,7 @@ public class KafkaInterceptHandler extends AbstractInterceptHandler {
         deviceConnMsg.setTs(System.currentTimeMillis());
         deviceConnMsg.setIp(ip);
         kafkaMsg.setPayload(new Gson().toJson(deviceConnMsg).getBytes());
-        ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg);
+        ProducerRecord<String, KafkaMsg> record = new ProducerRecord<String, KafkaMsg>(BrokerConstants.KAFKA_TOPIC_P2P, kafkaMsg.getsDeviceGuid(), kafkaMsg);
         producer4p2p.send(record);
     }
 }

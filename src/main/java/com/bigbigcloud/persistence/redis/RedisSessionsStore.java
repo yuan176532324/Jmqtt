@@ -355,8 +355,30 @@ public class RedisSessionsStore implements ISessionsStore, ISubscriptionsStore {
         dropQueue(clientID);
     }
 
+    @Override
+    public void markPubTime(String clientID) {
+        persistSession = redis.getMap(SESSION + clientID);
+        if (persistSession.isExists()) {
+            PersistentSession persistentSession = persistSession.get(clientID);
+            persistentSession.setTimestamp(System.currentTimeMillis());
+            persistSession.put(clientID, persistentSession);
+        }
+    }
 
-    private static String inboundMessageId2MessagesMapName(String clientID) {
-        return INBOUND_INFLIGHT + clientID;
+    @Override
+    public boolean canPub(String clientID) {
+        persistSession = redis.getMap(SESSION + clientID);
+        if (persistSession.isExists()) {
+            PersistentSession persistentSession = persistSession.get(clientID);
+            long interval = System.currentTimeMillis() - persistentSession.getTimestamp();
+            LOG.info("time interval is: {}", interval);
+            return interval > TIME_INTERVAL;
+        }
+        return false;
+    }
+
+    @Override
+    public int getSubNo(String clientID) {
+        return 0;
     }
 }

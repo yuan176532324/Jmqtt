@@ -5,13 +5,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
-
-import java.io.UnsupportedEncodingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Date;
 import java.util.Map;
 
 
 public class KafkaMessageConverter implements Deserializer<KafkaMsg>, Serializer<KafkaMsg> {
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaMessageConverter.class);
     protected Gson gson = (new GsonBuilder()).disableHtmlEscaping().registerTypeAdapter(Date.class, new com.bigbigcloud.common.json.adapters.TimestampAdapter()).create();
 
     public KafkaMessageConverter() {
@@ -32,8 +33,8 @@ public class KafkaMessageConverter implements Deserializer<KafkaMsg>, Serializer
     public KafkaMsg fromBytes(byte[] bytes) {
         try {
             return this.fromString(new String(bytes, "UTF-8"));
-        } catch (UnsupportedEncodingException var3) {
-            var3.printStackTrace();
+        } catch (Exception ex) {
+            LOG.error("msg fromBytes error , ex is: {}", ex);
             return null;
         }
     }

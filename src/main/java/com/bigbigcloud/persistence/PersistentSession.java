@@ -14,11 +14,7 @@
  * You may elect to redistribute this code under either of these licenses.
  */
 package com.bigbigcloud.persistence;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
-import java.util.Properties;
 
 /**
  * This is a DTO used to persist minimal status (clean session and activation status) of a
@@ -28,8 +24,8 @@ public class PersistentSession implements Serializable {
 
     private static final long serialVersionUID = 5052054783220481854L;
     private boolean cleanSession;
-    private String brokerId;
     private boolean active;
+    private long timestamp;
 
 
     public PersistentSession() {
@@ -37,7 +33,6 @@ public class PersistentSession implements Serializable {
 
     public PersistentSession(boolean cleanSession) {
         this.cleanSession = cleanSession;
-        this.brokerId = "";
         this.active = true;
     }
 
@@ -49,14 +44,6 @@ public class PersistentSession implements Serializable {
         this.active = active;
     }
 
-    public String getBrokerId() {
-        return brokerId;
-    }
-
-    public void setBrokerId(String brokerId) {
-        this.brokerId = brokerId;
-    }
-
     public boolean isCleanSession() {
         return cleanSession;
     }
@@ -65,4 +52,11 @@ public class PersistentSession implements Serializable {
         this.cleanSession = cleanSession;
     }
 
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
 }

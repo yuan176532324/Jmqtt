@@ -132,4 +132,9 @@ public interface ISessionsStore {
 
     void cleanSession(String clientID);
 
+    void markPubTime(String clientID);
+
+    boolean canPub(String clientID);
+
+    int getSubNo(String clientID);
 }

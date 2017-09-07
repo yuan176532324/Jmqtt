@@ -16,30 +16,29 @@
 
 package com.bigbigcloud.spi.impl;
 
-import com.bigbigcloud.common.model.*;
-import com.bigbigcloud.persistence.redis.RedissonUtil;
-import com.bigbigcloud.persistence.redis.TrackedMessage;
-import com.bigbigcloud.server.netty.NettyUtils;
-import com.bigbigcloud.spi.*;
-import com.bigbigcloud.server.ConnectionDescriptorStore;
-import com.bigbigcloud.spi.impl.subscriptions.Subscription;
-import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
-import com.bigbigcloud.spi.security.IAuthenticator;
-import com.bigbigcloud.spi.security.IAuthorizator;
+import com.bigbigcloud.common.model.MessageGUID;
+import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.interception.InterceptHandler;
 import com.bigbigcloud.interception.messages.InterceptAcknowledgedMessage;
+import com.bigbigcloud.persistence.redis.RedissonUtil;
+import com.bigbigcloud.persistence.redis.TrackedMessage;
 import com.bigbigcloud.server.ConnectionDescriptor;
+import com.bigbigcloud.server.ConnectionDescriptorStore;
+import com.bigbigcloud.server.netty.NettyUtils;
+import com.bigbigcloud.spi.*;
+import com.bigbigcloud.spi.impl.subscriptions.Subscription;
+import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
+import com.bigbigcloud.spi.security.IAuthenticator;
+import com.bigbigcloud.spi.security.IAuthorizator;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.timeout.IdleStateHandler;
-import org.omg.PortableInterceptor.SUCCESSFUL;
 import org.redisson.api.RBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -47,20 +46,16 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
-import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
 import static com.bigbigcloud.persistence.redis.MessageStatus.COMPLETED;
-import static com.bigbigcloud.persistence.redis.MessageStatus.SENT_SEC;
 import static com.bigbigcloud.persistence.redis.MessageStatus.SUCCESS;
+import static com.bigbigcloud.server.ConnectionDescriptor.ConnectionState.*;
 import static com.bigbigcloud.spi.impl.InternalRepublisher.createPublishForQos;
 import static com.bigbigcloud.spi.impl.Utils.messageId;
 import static com.bigbigcloud.spi.impl.Utils.readBytesAndRewind;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
 import static io.netty.handler.codec.mqtt.MqttQoS.*;
-import static com.bigbigcloud.server.ConnectionDescriptor.ConnectionState.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -516,8 +511,22 @@ public class ProtocolProcessor {
     public void processPublish(Channel channel, MqttPublishMessage msg) throws IOException {
         final MqttQoS qos = msg.fixedHeader().qosLevel();
         final String clientId = NettyUtils.clientID(channel);
+        final Topic topic = new Topic(msg.variableHeader().topicName());
+        String username = NettyUtils.userName(channel);
         LOG.info("Processing PUBLISH message. CId={}, topic={}, messageId={}, qos={} ,time1={}", clientId,
                 msg.variableHeader().topicName(), msg.variableHeader().messageId(), qos, new Date().getTime());
+        if (!m_sessionsStore.canPub(clientId)) {
+            LOG.warn("pub msg too frequently!");
+            channel.writeAndFlush(connAck(CONNECTION_REFUSED_SERVER_UNAVAILABLE));
+            channel.close();
+            return;
+        }
+        m_sessionsStore.markPubTime(clientId);
+        if (!m_authorizator.canWrite(topic, username, clientId)) {
+            LOG.warn("MQTT client is not authorized to publish on topic. CId={}, topic={}", clientId, topic);
+            channel.writeAndFlush(connAck(CONNECTION_REFUSED_SERVER_UNAVAILABLE));
+            return;
+        }
         switch (qos) {
             case AT_MOST_ONCE:
                 this.qos0PublishHandler.receivedPublishQos0(channel, msg);
@@ -859,7 +868,7 @@ public class ProtocolProcessor {
             Topic topic = new Topic(req.topicName());
             if (!m_authorizator.canRead(topic, username, clientSession.clientID)) {
                 // send SUBACK with 0x80, the user hasn't credentials to read the topic
-                LOG.error("Client does not have read permissions on the topic CId={}, username={}, messageId={}, " +
+                LOG.warn("Client does not have read permissions on the topic CId={}, username={}, messageId={}, " +
                         "topic={}", clientID, username, messageId, topic);
                 ackTopics.add(new MqttTopicSubscription(topic.toString(), FAILURE));
             } else {

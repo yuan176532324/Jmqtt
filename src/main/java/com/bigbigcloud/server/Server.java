@@ -19,38 +19,32 @@ package com.bigbigcloud.server;
 import com.bigbigcloud.BrokerConstants;
 import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.connections.IConnectionsManager;
-import com.bigbigcloud.interception.HazelcastInterceptHandler;
-import com.bigbigcloud.interception.InterceptHandler;
-import com.bigbigcloud.interception.KafkaInterceptHandler;
-import com.bigbigcloud.interception.KafkaMsg;
+import com.bigbigcloud.interception.*;
 import com.bigbigcloud.logging.LoggingUtils;
+import com.bigbigcloud.server.config.*;
 import com.bigbigcloud.server.netty.NettyAcceptor;
 import com.bigbigcloud.spi.impl.ProtocolProcessor;
 import com.bigbigcloud.spi.impl.ProtocolProcessorBootstrapper;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
 import com.bigbigcloud.spi.security.IAuthenticator;
-import com.bigbigcloud.spi.security.ISslContextCreator;
-import com.bigbigcloud.server.config.FileResourceLoader;
-import com.bigbigcloud.server.config.IConfig;
-import com.bigbigcloud.server.config.MemoryConfig;
-import com.bigbigcloud.server.config.ResourceLoaderConfig;
 import com.bigbigcloud.spi.security.IAuthorizator;
-import com.hazelcast.config.ClasspathXmlConfig;
-import com.hazelcast.config.Config;
-import com.hazelcast.config.FileSystemXmlConfig;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.HazelcastInstanceNotActiveException;
-import com.hazelcast.core.ITopic;
-import com.bigbigcloud.server.config.IResourceLoader;
-import io.netty.handler.codec.mqtt.MqttPublishMessage;
+import com.bigbigcloud.spi.security.ISslContextCreator;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.mqtt.*;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KStreamBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -61,15 +55,13 @@ public class Server {
 
     private static final Logger LOG = LoggerFactory.getLogger(Server.class);
 
-    private static final String HZ_INTERCEPT_HANDLER = HazelcastInterceptHandler.class.getCanonicalName();
-
     private ServerAcceptor m_acceptor;
 
     private volatile boolean m_initialized;
 
     private ProtocolProcessor m_processor;
 
-    private HazelcastInstance hazelcastInstance;
+    private KafkaMessageConverter kafkaMessageConverter = new KafkaMessageConverter();
 
     private ProtocolProcessorBootstrapper m_processorBootstrapper;
 
@@ -198,13 +190,36 @@ public class Server {
 
     private void configureKafka(IConfig config) throws Exception {
         String topic = config.getProperty(BrokerConstants.KAFKA_TOPIC);
-        Integer threadCounts = Integer.valueOf(config.getProperty(BrokerConstants.THREAD_COUNTS));
-        MultiThreadHLConsumer multiThreadHLConsumer = new MultiThreadHLConsumer(topic, this);
-        multiThreadHLConsumer.testConsumer(threadCounts);
+        Properties props = createKafkaStreamProperties();
+        KafkaStreams streams = new KafkaStreams(getStreamBuilder(topic), props);
+        streams.start();
     }
 
-    public HazelcastInstance getHazelcastInstance() {
-        return hazelcastInstance;
+    private KStreamBuilder getStreamBuilder(String topic) {
+        Serde<byte[]> byteSerde = Serdes.ByteArray();
+        KStreamBuilder builder = new KStreamBuilder();
+        KStream<byte[], byte[]> streams = builder.stream(byteSerde, byteSerde, topic);
+        streams.foreach((key, value) -> {
+            try {
+                KafkaMsg kafkaMsg = kafkaMessageConverter.fromBytes(value);
+                LOG.info("{} received from kafka for topic {} message: {} timestamp: {}", kafkaMsg.getClientId(), kafkaMsg.getTopic(),
+                        new String(kafkaMsg.getPayload()), new Date().getTime());
+                MqttQoS qos = MqttQoS.valueOf(kafkaMsg.getQos());
+                MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, qos, false, 0);
+                MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(kafkaMsg.getTopic(), kafkaMsg.getMessageId());
+                ByteBuf payload = Unpooled.wrappedBuffer(kafkaMsg.getPayload());
+                MqttPublishMessage publishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
+                this.internalPublish(publishMessage, kafkaMsg.getClientId(), kafkaMsg.getGuid());
+            } catch (Exception ex) {
+                LOG.error("error polling kafka msg queue", ex);
+            }
+        });
+        return builder;
+    }
+
+    private static Properties createKafkaStreamProperties() {
+        KafkaConfig kafkaConfig = new KafkaConfig(BrokerConstants.CONFIG_LOCATION + BrokerConstants.KAFKA_CONFIG_FOR_P2P);
+        return kafkaConfig.load();
     }
 
     /**
@@ -232,15 +247,6 @@ public class Server {
         LOG.trace("Stopping MQTT protocol processor");
         m_processorBootstrapper.shutdown();
         m_initialized = false;
-        if (hazelcastInstance != null) {
-            LOG.trace("Stopping embedded Hazelcast instance");
-            try {
-                hazelcastInstance.shutdown();
-            } catch (HazelcastInstanceNotActiveException e) {
-                LOG.warn("embedded Hazelcast instance is already shut down.");
-            }
-        }
-
         scheduler.shutdown();
 
         LOG.info("Moquette server has been stopped.");
