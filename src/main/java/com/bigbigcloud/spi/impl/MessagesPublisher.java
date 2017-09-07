@@ -20,11 +20,11 @@ import com.bigbigcloud.common.model.MessageGUID;
 import com.bigbigcloud.common.model.StoredMessage;
 import com.bigbigcloud.persistence.redis.RedissonUtil;
 import com.bigbigcloud.persistence.redis.TrackedMessage;
-import com.bigbigcloud.spi.ISessionsStore;
-import com.bigbigcloud.spi.ClientSession;
-import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
 import com.bigbigcloud.server.ConnectionDescriptorStore;
+import com.bigbigcloud.spi.ClientSession;
+import com.bigbigcloud.spi.ISessionsStore;
 import com.bigbigcloud.spi.impl.subscriptions.Subscription;
+import com.bigbigcloud.spi.impl.subscriptions.SubscriptionsDirectory;
 import com.bigbigcloud.spi.impl.subscriptions.Topic;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.*;
@@ -38,7 +38,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.bigbigcloud.BrokerConstants.MESSAGE_STATUS;
-import static com.bigbigcloud.BrokerConstants.OFFLINE_MESSAGES;
 import static com.bigbigcloud.persistence.redis.MessageStatus.*;
 
 class MessagesPublisher {
@@ -73,10 +72,10 @@ class MessagesPublisher {
         final String topic1 = pubMsg.getTopic();
         final MqttQoS publishingQos = pubMsg.getQos();
         final ByteBuf origPayload = pubMsg.getPayload();
-        //标记 发布者+消息 状态为READY_TO_PUB
+        //标记 发布者+消息 状态为READY_TO_SUB
         if (pubMsg.getGuid() != null) {
             RBucket<TrackedMessage> rBucket_pub = RedissonUtil.getRedisson().getBucket(MESSAGE_STATUS + pubMsg.getClientID() + "_" + pubMsg.getMessageId() + "_" + pubMsg.getGuid().toString());
-            rBucket_pub.set(new TrackedMessage(READY_TO_PUB), 1, TimeUnit.DAYS);
+            rBucket_pub.set(new TrackedMessage(READY_TO_SUB), 1, TimeUnit.DAYS);
         }
         //为订阅者分发消息
         for (final Subscription sub : topicMatchingSubscriptions) {

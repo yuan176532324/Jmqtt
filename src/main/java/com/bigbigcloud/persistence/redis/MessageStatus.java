@@ -7,7 +7,7 @@ package com.bigbigcloud.persistence.redis;
 
 public enum MessageStatus {
     PUB_TO_MQ(0),
-    READY_TO_PUB(1),
+    READY_TO_SUB(1),
     PUB_TO_SUBER(2),
     SENT_FIR(3),
     SENT_SEC(4),
