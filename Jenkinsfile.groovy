@@ -29,7 +29,7 @@ node('docker-common') {
         }
 
         stage('build downstreams') {
-            build job: 'dchub-docker-build',
+            build job: "${projectName}-docker-build",
                     propagate: false,
                     wait: false,
                     parameters: [
