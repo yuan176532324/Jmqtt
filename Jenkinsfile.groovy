@@ -29,11 +29,18 @@ node('docker-common') {
         }
 
         stage('build downstreams') {
-            build job: "${projectName}-deploy",
+            build job: 'dchub-docker-build',
                     propagate: false,
                     wait: false,
                     parameters: [
                             string(name: 'ProjectName', value: "${projectName}"),
+                            string(name: 'ReleaseVersion', value: "${releaseVersion}")
+                    ]
+
+            build job: "${projectName}-deploy",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
                             string(name: 'ReleaseVersion', value: "${releaseVersion}"),
                             string(name: 'DeploymentEnv', value: 'prod')
                     ]
